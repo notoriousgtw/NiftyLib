@@ -1,0 +1,13 @@
+{
+  "dependencies": [
+    {
+      "name": "imgui",
+      "features": ["glfw-binding", "opengl3-binding", "docking-experimental"]
+    },
+    "glad",
+    "libxlsxwriter"
+  ],
+  "name": "nifty-scallop",
+  "description": "Calculates router offsets to be used when scalloping a guitar neck.",
+  "version": "1.0"
+}
