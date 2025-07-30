@@ -19,7 +19,7 @@ FRET_DATA
 			fill="white"
 			stroke="none"
 			stroke-width="0"
-SHOW_CLIP_DATA
+			clip-path="url(#fretboard-clip)"
 		/>
 	</g>
 </svg>  
@@ -35,7 +35,12 @@ const std::string fret_body_final_template = R"(
 )";
 
 const std::string clip_template = R"(
-			<clipPath id = "CLIP_ID">
+			<clipPath id = "fretboard-clip">
+CLIP_PATHS
+			</clipPath>
+)";
+
+const std::string clip_path_template = R"(
 				<path d="
 CLIP_HEAD
 CLIP_BODY
@@ -44,7 +49,6 @@ CLIP_TAIL
 					stroke="none"
 					stroke-width="0"
 				/>
-			</clipPath>
 )";
 
 const std::string route_clip_head_template = R"(
@@ -65,8 +69,6 @@ const std::string route_clip_tail_template = R"(
 					H 27500
 					Z"
 )";
-
-const std::string scallop_clip_id = "clip-scallop";
 
 const std::string scallop_clip_head_template = R"(
 					M 27500 1000
@@ -92,8 +94,4 @@ const std::string scallop_clip_tail_template = R"(
 					H 27500
 					Z"
 )";
-
-const std::string show_clip_template = R"SVG(
-			clip-path="url(#CLIP_ID)"
-)SVG";
 }
