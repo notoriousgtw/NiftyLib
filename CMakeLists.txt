@@ -43,7 +43,10 @@ file(GLOB SOURCES "src/*.cpp")
 add_library(NiftyLib ${SOURCES})
 
 target_compile_definitions(NiftyLib PRIVATE GLFW_STATIC)
-target_include_directories(NiftyLib PUBLIC "include")
+target_include_directories(NiftyLib PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>
+    $<INSTALL_INTERFACE:src/include>
+)
 
 install(TARGETS NiftyLib EXPORT NiftyLibTargets
         RUNTIME DESTINATION bin
