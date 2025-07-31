@@ -94,4 +94,5 @@ const std::string scallop_clip_tail_template = R"(
 					H 27500
 					Z"
 )";
-}
+
+}	 // namespace Nifty::SVG::Templates::Fretboard

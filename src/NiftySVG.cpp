@@ -2,7 +2,7 @@
 
 namespace Nifty::SVG
 {
-void Handler::Update(const std::string & svg_data)
+void BMPHandler::Update(const std::string & svg_data)
 {
 	document = lunasvg::Document::loadFromData(svg_data);
 	if (!document)
@@ -28,7 +28,7 @@ void Handler::Update(const std::string & svg_data)
 	// Unbind the texture
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
-Handler::~Handler()
+BMPHandler::~BMPHandler()
 {
 			// Cleanup GLTexture
 	if (texture_id)

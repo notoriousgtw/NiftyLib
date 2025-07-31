@@ -14,36 +14,64 @@ namespace Nifty
 {
 namespace SVG
 {
+
 class Fretboard
 {
   public:
+	class ClipPath
+	{
+	  public:
+		enum class Type
+		{
+			Scallop,
+			Route
+		};
+
+		ClipPath() = delete;
+		ClipPath(Scallop::FretboardData* fretboard_data);
+		ClipPath(Scallop::FretboardData* fretboard_data,
+				 Route::RouterBit		 router_bit,
+				 Scallop::RouteOffset	 route_offset);
+		bool		operator<(const ClipPath& other) const { return id < other.id; };
+		std::string Calc();
+
+	  private:
+		size_t					id;
+		Type					type;
+		Route::RouterBit*		router_bit	   = nullptr;
+		Scallop::RouteOffset*	route_offset   = nullptr;
+		Scallop::FretboardData* fretboard_data = nullptr;
+		void					GenId();
+	};
+
 	Fretboard();
-	void Update(double scale_length,
-				int	   fret_count,
-				double fret_width,
-				double fret_height,
-				double scallop_depth,
-				bool   show_scallop);
+	void Update();
 	int	 GetTextureID() { return svg_handler.texture_id; };
 	int	 GetWidth() { return svg_handler.width; };
 	int	 GetHeight() { return svg_handler.height; };
+	void SetScaleLength(double scale_length);
+	void SetFretCount(size_t fret_count);
+	void SetFretWidth(double fret_width);
+	void SetFretHeight(double fret_height);
+	void SetScallopDepth(double scallop_depth);
+	void PushClipPath(ClipPath clip_path);
+	void PopClipPath(ClipPath clip_path);
 
   private:
-	double		scale_length  = 25.5;
-	int			fret_count	  = 24;
-	double		fret_width	  = 0.115;
-	double		fret_height	  = 0.053;
-	double		scallop_depth = 0.0625;
-	bool		show_scallop  = false;
-	std::string svg_data;
-	Handler		svg_handler;
+	bool					should_update = true;
+	Scallop::FretboardData* fretboard_data;
+	std::set<ClipPath>		clip_paths;
+	std::string				svg_data;
+	BMPHandler					svg_handler;
 
 	std::string CalcFretData();
 	std::string CalcClipData();
 	std::string CalcScallopClipPath();
 	std::string CalcScallopClipHead();
 	std::string CalcScallopClipBody();
-	std::string CalcScallopClipTail();
+	std::string CalcRouteClipPaths();
+	std::string CalcRouteClipHead();
+	std::string CalcRouteClipBody();
 };
 }	 // namespace SVG
 
@@ -70,26 +98,26 @@ namespace Scallop
 
 using namespace Nifty::Route;
 
-enum class ScallopRouteOffset
+enum class RouteOffset
 {
 	Quarter,
 	Half,
 	ThreeQuarter
 };
 
-const std::set<ScallopRouteOffset> scallop_route_offsets = { ScallopRouteOffset::Quarter,
-															 ScallopRouteOffset::Half,
-															 ScallopRouteOffset::ThreeQuarter };
+const std::set<RouteOffset> scallop_route_offsets = { RouteOffset::Quarter,
+													  RouteOffset::Half,
+													  RouteOffset::ThreeQuarter };
 
 struct ScallopRoute
 {
-	RouterBit		   bit;
-	double			   depth;
-	ScallopRouteOffset offset;
-	double			   offset_dist;
+	RouterBit	bit;
+	double		depth;
+	RouteOffset offset;
+	double		offset_dist;
 
 	ScallopRoute() = delete;
-	ScallopRoute(RouterBit bit, double depth, ScallopRouteOffset offset, double offset_dist):
+	ScallopRoute(RouterBit bit, double depth, RouteOffset offset, double offset_dist):
 		bit(bit), depth(depth), offset(offset), offset_dist(offset_dist)
 	{
 	}
@@ -105,6 +133,7 @@ class FretData
 
 	inline size_t GetFretNumber() const { return fret_number; }
 	inline double GetFretLength() const { return fret_length; }
+	inline bool	  operator<(const FretData& other) const { return fret_number < other.fret_number; };
 
   private:
 	FretboardData*			  fretboard_data;
@@ -127,15 +156,18 @@ class FretboardData
 				  int	 fret_end,
 				  double fret_width,
 				  double fret_height,
-				  double scallop_depth);
+				  double scallop_depth,
+				  double router_base_width);
 
-	inline double		  GetScaleLength() const { return scale_length; }
-	inline size_t		  GetFretCount() const { return fret_count; }
-	inline size_t		  GetFretStart() const { return fret_start; }
-	inline size_t		  GetFretEnd() const { return fret_end; }
-	inline double		  GetFretWidth() const { return fret_width; }
-	inline double		  GetFretHeight() const { return fret_height; }
-	inline double		  GetScallopDepth() const { return scallop_depth; }
+	inline double GetScaleLength() const { return scale_length; }
+	inline size_t GetFretCount() const { return fret_count; }
+	inline size_t GetFretStart() const { return fret_start; }
+	inline size_t GetFretEnd() const { return fret_end; }
+	inline double GetFretWidth() const { return fret_width; }
+	inline double GetFretHeight() const { return fret_height; }
+	inline double GetScallopDepth() const { return scallop_depth; }
+	inline double GetRouterBaseWidth() const { return router_base_width; }
+	// inline FretData*	  GetFretData() const { return fret_data_vec() }
 	inline FretDataVector GetFretDataVec() const { return fret_data_vec; }
 
   private:
@@ -146,6 +178,7 @@ class FretboardData
 	double		   fret_width;
 	double		   fret_height;
 	double		   scallop_depth;
+	double		   router_base_width;
 	FretDataVector fret_data_vec;
 	size_t		   fret_index = 1;
 };

@@ -48,9 +48,11 @@ namespace Nifty
 		while (!glfwWindowShouldClose(window))
 		{
 			glfwPollEvents();
+			BeginFrameCore();
 			BeginFrame();
 			Update();
 			EndFrame();
+			EndFrameCore();
 			Render();
 			glfwSwapBuffers(window);
 		}
@@ -64,7 +66,7 @@ namespace Nifty
 		ImGui::DestroyContext();
 	}
 
-	void App::BeginFrame()
+	void App::BeginFrameCore()
 	{
 		// Start ImGui Frame
 		ImGui_ImplGlfw_NewFrame();
@@ -76,7 +78,7 @@ namespace Nifty
 		ImGui::Begin(this->name.c_str(), nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
 	}
 
-	void App::EndFrame()
+	void App::EndFrameCore()
 	{
 		ImGui::End();
 	}

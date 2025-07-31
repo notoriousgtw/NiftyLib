@@ -23,9 +23,11 @@ private:
 	ImGuiIO* io;
 	GLFWwindow * window;
 
-	void BeginFrame();
+	void BeginFrameCore();
+	virtual void BeginFrame() = 0;
 	virtual void Update() = 0;
-	void EndFrame();
+	virtual void EndFrame() = 0;
+	void EndFrameCore();
 	void Render();
 };
 }

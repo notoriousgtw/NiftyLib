@@ -1,23 +1,45 @@
 #pragma once
 
-#include <lunasvg.h> 
 #include <glad/glad.h>
-#include <string>
-#include <sstream>
 #include <iomanip>
+#include <lunasvg.h>
+#include <set>
+#include <sstream>
+#include <string>
+#include <NiftySVGElements.h>
 
 namespace Nifty::SVG
 {
-	class Handler
-	{
-	public:
-		std::unique_ptr<lunasvg::Document> document;
-		lunasvg::Bitmap bitmap;
-		GLuint texture_id = 0;
-		int width, height = 500;
+class BMPHandler
+{
+  public:
+	std::unique_ptr<lunasvg::Document> document;
+	lunasvg::Bitmap					   bitmap;
+	GLuint							   texture_id = 0;
+	int								   width, height = 500;
 
-		void Update(const std::string & svg_data);
+	void Update(const std::string& svg_data);
 
-		~Handler();
-	};
-}
+	~BMPHandler();
+};
+
+class Image
+{
+  public:
+	Image();
+	void Update();
+	int	 GetTextureID() { return bmp_handler.texture_id; };
+	int	 GetWidth() { return bmp_handler.width; };
+	int	 GetHeight() { return bmp_handler.height; };
+	void PushClipPath(ClipPath clip_path);
+	void PopClipPath(ClipPath clip_path);
+
+	Path& Path();
+
+  private:
+	bool			   should_update = true;
+	std::set<ClipPath> clip_paths;
+	std::string		   svg_data;
+	BMPHandler		   bmp_handler;
+};
+}	 // namespace Nifty::SVG
