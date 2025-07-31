@@ -37,6 +37,7 @@ FetchContent_MakeAvailable(glfw)
 
 find_package(imgui CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
 
 file(GLOB SOURCES "src/*.cpp")
 
@@ -65,4 +66,4 @@ if (WIN32)
     target_link_libraries(NiftyLib PRIVATE opengl32 gdi32 user32 shell32)
 endif()
 
-target_link_libraries(NiftyLib PRIVATE lunasvg::lunasvg imgui::imgui glfw glad::glad)
+target_link_libraries(NiftyLib PRIVATE lunasvg::lunasvg imgui::imgui glm::glm glfw glad::glad)
