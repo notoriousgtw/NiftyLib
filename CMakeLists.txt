@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.7)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /ZI")
@@ -35,9 +35,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-find_package(imgui CONFIG REQUIRED)
-find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(Vulkan)
 
 file(GLOB SOURCES "src/*.cpp")
 
@@ -62,8 +61,4 @@ install(EXPORT NiftyLibTargets
         DESTINATION lib/cmake/NiftyLib
     )
 
-if (WIN32)
-    target_link_libraries(NiftyLib PRIVATE opengl32 gdi32 user32 shell32)
-endif()
-
-target_link_libraries(NiftyLib PRIVATE lunasvg::lunasvg imgui::imgui glm::glm glfw glad::glad)
+target_link_libraries(NiftyLib PUBLIC lunasvg::lunasvg Vulkan::Vulkan glm::glm glfw)
