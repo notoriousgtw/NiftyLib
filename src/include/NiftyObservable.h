@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Nifty::Observe
+namespace nft::Observe
 {
 
 template<typename T>

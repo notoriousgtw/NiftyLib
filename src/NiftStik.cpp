@@ -1,6 +1,6 @@
 #include <NiftyStik.h>
-using namespace Nifty::Stik;
+using namespace nft::Stik;
 
-namespace Nifty::SVG
+namespace nft::SVG
 {
 }

@@ -1,35 +1,51 @@
 #include "NiftyApp.h"
 
-namespace Nifty
+#include "NiftyError.h"
+#include "NiftyLog.h"
+
+//#include <chrono>
+//#include <thread>
+
+namespace nft
 {
 App::App(std::string name)
 {
-	this->name = name;
+	this->name = std::move(name);
+	AutoShowConsole();
+
+	ErrorHandler::Init(this->name);
+
+	ErrorHandler::Warn("test warning");
+	ErrorHandler::Error<ColorEncodingError>("test error");
+}
+
+void App::Init()
+{
+	PreInit();
 
 	// Initialize GLFW
 	if (!glfwInit()) throw("Failed to initialize GLFW!");
 
 	// Set GL Version
 	const char* glsl_version = "#version 330";
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+	// Add main window to stack
+	auto window = std::make_unique<GUI::Window>(1280, 720, "Nifty App");
+	main_window = window.get();
+	windows.insert(std::move(window));
+	//Logger::Debug("Main window created: " + main_window->GetTitle());
 
 	// Get vulkan extension count
 	uint32_t extension_count = 0;
 	vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 
-	std::cout << "Extension Count: " << extension_count << std::endl;
-
-	glm::mat4 matrix;
-	glm::vec4 vector;
-	auto	  test = matrix * vector;
+	PostInit();
 }
 
 void App::Loop()
 {
-	while (/*!glfwWindowShouldClose(window)*/true)
+	while (!main_window->ShouldClose())
 	{
-		//glfwSwapBuffers(window);
 		glfwPollEvents();
 		BeginFrameCore();
 		BeginFrame();
@@ -43,13 +59,13 @@ void App::Loop()
 App::~App()
 {
 	// Cleanup
-	//glfwDestroyWindow(window);
+	// glfwDestroyWindow(window);
 	glfwTerminate();
 }
 
 void App::BeginFrameCore()
 {
-	// Start ImGui Frame
+	//
 }
 
 void App::EndFrameCore() {}
@@ -60,4 +76,4 @@ void App::Render()
 	// glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	// glClear(GL_COLOR_BUFFER_BIT);
 }
-}	 // namespace Nifty
+}	 // namespace nft

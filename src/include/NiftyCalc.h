@@ -5,7 +5,7 @@
 #include <map>  
 //#include "xlsxwriter.h"
 
-namespace Nifty
+namespace nft
 {
 	enum class ScallopOffsetType
 	{

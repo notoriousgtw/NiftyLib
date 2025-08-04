@@ -1,6 +1,6 @@
 #include "NiftySVG.h"
 
-namespace Nifty::SVG
+namespace nft::SVG
 {
 //void BMPHandler::Update(const std::string & svg_data)
 //{

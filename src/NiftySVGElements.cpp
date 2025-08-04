@@ -1,6 +1,6 @@
 #include <NiftySVGElements.h>
 
-namespace Nifty::SVG
+namespace nft::SVG
 {
 
 //void StyledElement::Style(std::optional<Color>& fill, std::optional<Color>& stroke, std::optional<double>& stroke_width)
@@ -24,4 +24,4 @@ namespace Nifty::SVG
 //			 style, std::regex("(stroke-width: )(.*)(?=;)"), "$1" + std::to_string(this->stroke_width));
 //	}
 //}
-}	 // namespace Nifty::SVG
+}	 // namespace nft::SVG

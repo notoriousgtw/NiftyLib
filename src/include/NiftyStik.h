@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace Nifty::Stik
+namespace nft::Stik
 {
 inline double FretCalculator(double scale_length, int fret_number)
 {

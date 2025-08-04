@@ -1,7 +1,7 @@
 #include "NiftyNum.h"
 #include <NiftyNum.h>
 
-namespace Nifty::Num
+namespace nft::Num
 {
 
 double ChordLength(double x_radius, double y_radius, double distance, Axis2D axis)
@@ -25,4 +25,4 @@ glm::dvec2 GetChord(double x_radius, double y_radius, double distance, Axis2D ax
 	}
 	return chord;
 }
-}	 // namespace Nifty::Num
+}	 // namespace nft::Num
