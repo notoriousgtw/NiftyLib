@@ -1,21 +1,16 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+//#define GLM_FORCE_RADIANS
+//#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/mat4x4.hpp>
-#include <glm/vec4.hpp>
-#include <iostream>
+#include <set>
+#include <memory>
 
-#include <string>
-#include <stack>
-
-#include "NiftyGUI.h"
 #include "NiftyWindow.h"
 
-namespace Nifty
+#include <Windows.h>
+
+namespace nft
 {
 class App
 {
@@ -23,15 +18,39 @@ class App
 	App() = delete;
 	App(std::string name);
 
-	void Loop();
+	void		 Init();
+	void		 Loop();
+	void ShowConsole(bool show)
+	{
+		HWND console_window = GetConsoleWindow();
+		if (show)
+			ShowWindow(console_window, SW_SHOW);
+		else
+			ShowWindow(console_window, SW_HIDE);
+	}
+	void AutoShowConsole()
+	{
+		HWND console_window = GetConsoleWindow();
+#ifdef _DEBUG
+		ShowWindow(console_window, SW_SHOW);
+#else
+		ShowWindow(console_window, SW_HIDE);
+#endif
+	}
 
 	~App();
 
   private:
-	std::string name;
+	std::string	 name;
+	//vk::Instance instance { nullptr };
 
-	std::stack<Nifty::GUI::Window> windows;
+	GUI::Window*						   main_window;
+	std::set<std::unique_ptr<GUI::Window>> windows;
 
+	//void CreateInstance();
+
+	virtual void PreInit() = 0;
+	virtual void PostInit() = 0;
 	void		 BeginFrameCore();
 	virtual void BeginFrame() = 0;
 	virtual void Update()	  = 0;
@@ -39,4 +58,4 @@ class App
 	void		 EndFrameCore();
 	void		 Render();
 };
-}	 // namespace Nifty
+}	 // namespace nft

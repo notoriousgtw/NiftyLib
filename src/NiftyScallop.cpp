@@ -1,16 +1,16 @@
 #include "NiftyScallop.h"
 #include <NiftyScallop.h>
 
-namespace Nifty
+namespace nft
 {
 //namespace SVG
 //{
 //
-//using namespace Nifty::SVG::Templates::Fretboard;
+//using namespace nft::SVG::Templates::Fretboard;
 
 //Fretboard::ClipPath::ClipPath(Scallop::FretboardData* fretboard_data)
 //{
-//	this->type			 = Type::Scallop;
+//	this->type			 = ColorName::Scallop;
 //	this->router_bit	 = nullptr;
 //	this->route_offset	 = nullptr;
 //	this->fretboard_data = fretboard_data;
@@ -21,7 +21,7 @@ namespace Nifty
 //							  Route::RouterBit		  router_bit,
 //							  Scallop::RouteOffset	  route_offset)
 //{
-//	this->type			 = Type::Route;
+//	this->type			 = ColorName::Route;
 //	this->router_bit	 = &router_bit;
 //	this->route_offset	 = &route_offset;
 //	this->fretboard_data = fretboard_data;
@@ -33,7 +33,7 @@ namespace Nifty
 //void Fretboard::ClipPath::GenId()
 //{
 //	id = 0b00000000;
-//	if (type == Type::Route)
+//	if (type == ColorName::Route)
 //		id = id | 0b00000001;
 //
 //	if (*router_bit == Route::RouterBit::ThreeEighth)
@@ -452,4 +452,4 @@ namespace Nifty
 //};
 
 //}	 // namespace Scallop
-}	 // namespace Nifty
+}	 // namespace nft

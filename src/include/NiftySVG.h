@@ -7,7 +7,7 @@
 #include <string>
 #include <NiftySVGElements.h>
 
-namespace Nifty::SVG
+namespace nft::SVG
 {
 //class BMPHandler
 //{
@@ -40,4 +40,4 @@ namespace Nifty::SVG
 //	std::string		   svg_data;
 //	BMPHandler		   bmp_handler;
 //};
-}	 // namespace Nifty::SVG
+}	 // namespace nft::SVG

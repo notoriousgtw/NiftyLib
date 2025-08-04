@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Nifty::Observe
+namespace nft::Observe
 {
 class Event
 {
@@ -21,4 +21,4 @@ class MouseClickEvent: public Event
 	EventType type = "MouseClick";
 	EventType GetType() const override { return type; }
 }
-}	 // namespace Nifty::Observe
+}	 // namespace nft::Observe

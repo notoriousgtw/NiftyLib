@@ -9,7 +9,7 @@
 #include <sstream>
 #include <string>
 
-namespace Nifty::SVG
+namespace nft::SVG
 {
 
 //enum class Color
@@ -83,4 +83,4 @@ namespace Nifty::SVG
 //	virtual void GenId() = 0;
 //};
 //
-}	 // namespace Nifty::SVG
+}	 // namespace nft::SVG

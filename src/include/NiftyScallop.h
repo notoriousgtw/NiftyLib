@@ -8,9 +8,9 @@
 #include <set>
 #include <vector>
 
-using namespace Nifty::Stik;
+using namespace nft::Stik;
 
-namespace Nifty
+namespace nft
 {
 namespace SVG
 {
@@ -21,7 +21,7 @@ namespace SVG
 //	class ClipPath
 //	{
 //	  public:
-//		enum class Type
+//		enum class ColorName
 //		{
 //			Scallop,
 //			Route
@@ -37,7 +37,7 @@ namespace SVG
 //
 //	  private:
 //		size_t					id;
-//		Type					type;
+//		ColorName					type;
 //		Route::RouterBit*		router_bit	   = nullptr;
 //		Scallop::RouteOffset*	route_offset   = nullptr;
 //		Scallop::FretboardData* fretboard_data = nullptr;
@@ -96,7 +96,7 @@ namespace SVG
 //namespace Scallop
 //{
 //
-//using namespace Nifty::Route;
+//using namespace nft::Route;
 //
 //enum class RouteOffset
 //{
@@ -183,4 +183,4 @@ namespace SVG
 //	size_t		   fret_index = 1;
 //};
 }	 // namespace Scallop
-}	 // namespace Nifty
+}	 // namespace nft

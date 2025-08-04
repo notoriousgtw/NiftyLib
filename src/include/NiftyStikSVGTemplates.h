@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Nifty::SVG::Templates::Fretboard
+namespace nft::SVG::Templates::Fretboard
 {
 const std::string svg_template = R"SVG(
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2750 100" width="2750" height="100">
@@ -95,4 +95,4 @@ const std::string scallop_clip_tail_template = R"(
 					Z"
 )";
 
-}	 // namespace Nifty::SVG::Templates::Fretboard
+}	 // namespace nft::SVG::Templates::Fretboard

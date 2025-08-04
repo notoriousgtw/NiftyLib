@@ -4,13 +4,17 @@
 #include <GLFW/glfw3.h>
 #include <string>
 
-namespace Nifty::GUI
+namespace nft::GUI
 {
 class Window
 {
   public:
 	Window(int width, int height, std::string title): width(width), height(height), title(title) { Init(); };
+	std::string GetTitle() const { return title; };
 	bool ShouldClose() const { return glfwWindowShouldClose(window); };
+
+	Window(const Window&)			 = delete;
+	Window& operator=(const Window&) = delete;
 
   private:
 	const int	width;
@@ -21,4 +25,4 @@ class Window
 
 	void Init();
 };
-}	 // namespace Nifty::GUI
+}	 // namespace nft::GUI

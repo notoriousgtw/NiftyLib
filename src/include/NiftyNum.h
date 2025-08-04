@@ -4,7 +4,7 @@
 #include <string>
 #include <glm/glm.hpp>
 
-namespace Nifty::Num
+namespace nft::Num
 {
 
 enum class Axis2D
@@ -136,4 +136,4 @@ class MixedNumber
 		return oss.str();
 	}
 };
-}	 // namespace Nifty::Num
+}	 // namespace nft::Num
