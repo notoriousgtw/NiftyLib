@@ -11,12 +11,13 @@
 
 namespace nft
 {
-struct ColorEncodingError: public Error
-{
-  public:
-	ColorEncodingError(std::string message): Error(std::move(message)) {}
-	std::string GetCode() const override { return "ColorEncodingError"; }
-};
+//struct ColorEncodingError: public Error
+//{
+//  public:
+//	ColorEncodingError(std::string message): Error(std::move(message)) { Init(); }
+//	DEFINE_ERROR_CODE()
+//};
+DEFINE_ERROR(ColorEncodingError, Error)
 
 // struct ColorData
 //{

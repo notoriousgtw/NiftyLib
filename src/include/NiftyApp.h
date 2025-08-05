@@ -1,11 +1,11 @@
 #pragma once
 
-//#define GLM_FORCE_RADIANS
-//#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+// #define GLM_FORCE_RADIANS
+// #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
 #include <set>
-#include <memory>
 
+#include "NiftyLog.h"
 #include "NiftyWindow.h"
 
 #include <Windows.h>
@@ -18,8 +18,8 @@ class App
 	App() = delete;
 	App(std::string name);
 
-	void		 Init();
-	void		 Loop();
+	void Init();
+	void Loop();
 	void ShowConsole(bool show)
 	{
 		HWND console_window = GetConsoleWindow();
@@ -39,17 +39,19 @@ class App
 	}
 
 	~App();
+	Logger* GetLogger() { return &logger; }
 
   private:
-	std::string	 name;
-	//vk::Instance instance { nullptr };
+	std::string name;
+	Logger		logger;
+	// vk::Instance instance { nullptr };
 
 	GUI::Window*						   main_window;
 	std::set<std::unique_ptr<GUI::Window>> windows;
 
-	//void CreateInstance();
+	// void CreateInstance();
 
-	virtual void PreInit() = 0;
+	virtual void PreInit()	= 0;
 	virtual void PostInit() = 0;
 	void		 BeginFrameCore();
 	virtual void BeginFrame() = 0;
