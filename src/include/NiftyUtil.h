@@ -3,20 +3,20 @@
 namespace nft
 {
 
-template<typename TYPE>
+template<typename T>
 class Enum
 {
   private:
-	TYPE value_;
+	T value;
 
   public:
-	explicit constexpr Enum(TYPE value): value_(value) {}
+	explicit constexpr Enum(T value): value(value) {}
 	constexpr Enum()							 = default;
 	~Enum()									 = default;
 	constexpr explicit Enum(const Enum&)	 = default;
 	constexpr Enum& operator=(const Enum&) = default;
 
-	constexpr	   operator TYPE() const { return value_; }
-	constexpr TYPE value() const { return value_; }
+	constexpr	   operator T() const { return value; }
+	constexpr T value() const { return value; }
 };
 }	 // namespace nft

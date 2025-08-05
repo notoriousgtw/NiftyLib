@@ -1,16 +1,23 @@
 #include "NiftyError.h"
+#include "NiftyErrorBase.h"
 
 #include <thread>
 
 namespace nft
 {
-std::vector<std::unique_ptr<nft::ErrorBase>> ErrorHandler::errors;
-Logger										 ErrorHandler::logger;
+DECLARE_ERROR_CODE(Warning, "Warning")
+DECLARE_ERROR_CODE(Error, "Error")
+DECLARE_ERROR_CODE(FatalError, "FatalError")
+DECLARE_ERROR_CODE(DuplicateErrorCodeError, "DuplicateErrorCodeError")
 
-void ErrorHandler::Init(std::string app_name)
+std::vector<std::unique_ptr<nft::ErrorBase>> ErrorHandler::errors;
+App*										 ErrorHandler::app = nullptr;
+
+void ErrorHandler::Init(App* app)
 {
+	ErrorHandler::app = app;
 	std::thread(
-		[]()
+		[app]()
 		{
 			while (true)
 			{
@@ -22,9 +29,15 @@ void ErrorHandler::Init(std::string app_name)
 					{
 						switch ((*it)->type)
 						{
-						case ErrorBase::Type::Warning: logger.Warn((*it)->message, (*it)->GetCode()); break;
-						case ErrorBase::Type::Error: logger.Error((*it)->message, (*it)->GetCode()); break;
-						case ErrorBase::Type::Fatal: logger.Fatal((*it)->message, (*it)->GetCode()); std::exit(EXIT_FAILURE);
+						case ErrorBase::Type::Warning:
+							app->GetLogger()->Warn((*it)->message, (*it)->GetCode());
+							break;
+						case ErrorBase::Type::Error:
+							app->GetLogger()->Error((*it)->message, (*it)->GetCode());
+							break;
+						case ErrorBase::Type::Fatal:
+							app->GetLogger()->Fatal((*it)->message, (*it)->GetCode());
+							std::exit(EXIT_FAILURE);
 						}
 						it = errors.erase(it);	  // Remove the error from the list after handling
 					}

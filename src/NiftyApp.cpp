@@ -1,6 +1,7 @@
 #include "NiftyApp.h"
 
 #include "NiftyError.h"
+#include "NiftyEvent.h"
 #include "NiftyLog.h"
 
 //#include <chrono>
@@ -12,10 +13,13 @@ App::App(std::string name)
 {
 	this->name = std::move(name);
 	AutoShowConsole();
+	logger = Logger(this->name);
 
-	ErrorHandler::Init(this->name);
+	ErrorHandler::Init(this);
+	EventHandler::Init(this);
 
 	ErrorHandler::Warn("test warning");
+	ErrorHandler::Warn("test warning 2");
 	ErrorHandler::Error<ColorEncodingError>("test error");
 }
 

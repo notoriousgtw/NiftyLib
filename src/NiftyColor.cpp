@@ -1,7 +1,10 @@
 #include "NiftyColor.h"
 
+#include "NiftyError.h"
+
 namespace nft
 {
+DECLARE_ERROR_CODE(ColorEncodingError, "ColorEncodingError")
 //  Define static members outside the class
 // std::expected<Color, Error> Color::RGBA(float r, float g, float b, float a)
 //{
