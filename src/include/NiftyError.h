@@ -27,7 +27,10 @@ class ErrorHandler
 		auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
 		errors.push_back(std::move(ptr));
 	}
-	static void Warn(std::string message) { Error<Warning>(message); };
+	static void Warn(std::string message, std::string function_name = "")
+	{
+		Error<Warning>(message, function_name);
+	};
 	static void Register(const std::string& code)
 	{
 		static std::unordered_set<std::string> codes;
@@ -35,9 +38,9 @@ class ErrorHandler
 		std::lock_guard<std::mutex>			   lock(mtx);
 		if (!codes.insert(code).second)
 		{
-			//app->GetLogger()->Fatal("Code: \"" + code + "\"",
+			// app->GetLogger()->Fatal("Code: \"" + code + "\"",
 			//						DuplicateErrorCodeError::StaticCode());
-			//std::exit(EXIT_FAILURE);
+			// std::exit(EXIT_FAILURE);
 			Error<DuplicateErrorCodeError>("Code: \"" + code + "\"");
 		}
 		app->GetLogger()->Debug("Registered code: \"" + code + "\"", "ErrorHandler");
@@ -48,6 +51,6 @@ class ErrorHandler
   private:
 	// List to store objects derived from Error
 	static std::vector<std::unique_ptr<ErrorBase>> errors;
-	static App*											app;
+	static App*									   app;
 };
 }	 // namespace nft

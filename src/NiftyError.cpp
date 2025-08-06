@@ -27,16 +27,22 @@ void ErrorHandler::Init(App* app)
 					// Process each error
 					if (*it)
 					{
+						std::string extra;
+						if (!(*it)->function_name.empty())
+							extra =
+								(*it)->GetCode() + "->" + (*it)->function_name;
+						else
+							extra = (*it)->GetCode();
 						switch ((*it)->type)
 						{
 						case ErrorBase::Type::Warning:
-							app->GetLogger()->Warn((*it)->message, (*it)->GetCode());
+							app->GetLogger()->Warn((*it)->message, extra);
 							break;
 						case ErrorBase::Type::Error:
-							app->GetLogger()->Error((*it)->message, (*it)->GetCode());
+							app->GetLogger()->Error((*it)->message, extra);
 							break;
 						case ErrorBase::Type::Fatal:
-							app->GetLogger()->Fatal((*it)->message, (*it)->GetCode());
+							app->GetLogger()->Fatal((*it)->message, extra);
 							std::exit(EXIT_FAILURE);
 						}
 						it = errors.erase(it);	  // Remove the error from the list after handling
@@ -45,7 +51,7 @@ void ErrorHandler::Init(App* app)
 				}
 
 				// Check for errors once a second
-				std::this_thread::sleep_for(std::chrono::seconds(1));
+				//std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		})
 		.detach();

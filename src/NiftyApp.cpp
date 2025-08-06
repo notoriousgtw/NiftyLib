@@ -3,9 +3,10 @@
 #include "NiftyError.h"
 #include "NiftyEvent.h"
 #include "NiftyLog.h"
+#include "NiftyVK.h"
 
-//#include <chrono>
-//#include <thread>
+// #include <chrono>
+// #include <thread>
 
 namespace nft
 {
@@ -14,13 +15,16 @@ App::App(std::string name)
 	this->name = std::move(name);
 	AutoShowConsole();
 	logger = Logger(this->name);
+#ifdef _DEBUG
+	logger.SetVerbose(true);
+#endif
 
 	ErrorHandler::Init(this);
 	EventHandler::Init(this);
 
-	ErrorHandler::Warn("test warning");
-	ErrorHandler::Warn("test warning 2");
-	ErrorHandler::Error<ColorEncodingError>("test error");
+	// ErrorHandler::Warn("test warning");
+	// ErrorHandler::Warn("test warning 2");
+	// ErrorHandler::Error<ColorEncodingError>("test error");
 }
 
 void App::Init()
@@ -28,20 +32,18 @@ void App::Init()
 	PreInit();
 
 	// Initialize GLFW
-	if (!glfwInit()) throw("Failed to initialize GLFW!");
+	if (!glfwInit()) ErrorHandler::Error<FatalError>("Failed to initialize GLFW!");
 
 	// Set GL Version
 	const char* glsl_version = "#version 330";
+
+	// Initialize Vulkan
+	Vulkan::VKHandler::Init(this);
 
 	// Add main window to stack
 	auto window = std::make_unique<GUI::Window>(1280, 720, "Nifty App");
 	main_window = window.get();
 	windows.insert(std::move(window));
-	//Logger::Debug("Main window created: " + main_window->GetTitle());
-
-	// Get vulkan extension count
-	uint32_t extension_count = 0;
-	vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
 
 	PostInit();
 }
@@ -64,6 +66,7 @@ App::~App()
 {
 	// Cleanup
 	// glfwDestroyWindow(window);
+	Vulkan::VKHandler::ShutDown();
 	glfwTerminate();
 }
 

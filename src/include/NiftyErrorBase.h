@@ -33,10 +33,12 @@ struct ErrorBase
 	//	return rawPtr;
 	// }
 
-	ErrorBase(std::string message, Type type): message(message), type(type) {};
+	ErrorBase(std::string message, std::string function_name, Type type):
+		message(message), function_name(function_name), type(type) {};
 	void				Init() { GetCode(); }
 	virtual std::string GetCode() const = 0;
 
+	std::string function_name;
 	std::string message;
 	Type		type;
 };
@@ -64,13 +66,17 @@ struct ErrorBase
 //	static const std::string& StaticCode();                                              \
 //	std::string				  GetCode() const override { return StaticCode(); }
 
-#define DEFINE_ERROR(CLASS, BASE, ...)                                                  \
-	struct CLASS: public BASE                                                           \
-	{                                                                                   \
-	  public:                                                                           \
-		CLASS(std::string message, ##__VA_ARGS__): BASE(std::move(message)) { Init(); } \
-		static const std::string& StaticCode();                                         \
-		std::string				  GetCode() const override { return StaticCode(); }     \
+#define DEFINE_ERROR(CLASS, BASE, ...)                                              \
+	struct CLASS: public BASE                                                       \
+	{                                                                               \
+	  public:                                                                       \
+		CLASS(std::string message, std::string function_name = "", ##__VA_ARGS__):  \
+			BASE(std::move(message), std::move(function_name))                      \
+		{                                                                           \
+			Init();                                                                 \
+		}                                                                           \
+		static const std::string& StaticCode();                                     \
+		std::string				  GetCode() const override { return StaticCode(); } \
 	};
 
 #define DEFINE_ERROR_CODE()                 \
@@ -92,19 +98,31 @@ struct ErrorBase
 
 struct Warning: public ErrorBase
 {
-	Warning(std::string message): ErrorBase(std::move(message), Type::Warning) { Init(); };
+	Warning(std::string message, std::string function_name = ""):
+		ErrorBase(std::move(message), std::move(function_name), Type::Warning)
+	{
+		Init();
+	};
 	DEFINE_ERROR_CODE()
 };
 
 struct Error: public ErrorBase
 {
-	Error(std::string message): ErrorBase(std::move(message), Type::Error) { Init(); };
+	Error(std::string message, std::string function_name = ""):
+		ErrorBase(std::move(message), std::move(function_name), Type::Error)
+	{
+		Init();
+	};
 	DEFINE_ERROR_CODE()
 };
 
 struct FatalError: public ErrorBase
 {
-	FatalError(std::string message): ErrorBase(std::move(message), Type::Fatal) { Init(); };
+	FatalError(std::string message, std::string function_name = ""):
+		ErrorBase(std::move(message), std::move(function_name), Type::Fatal)
+	{
+		Init();
+	};
 	DEFINE_ERROR_CODE()
 };
 

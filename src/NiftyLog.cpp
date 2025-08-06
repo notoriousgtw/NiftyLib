@@ -38,8 +38,23 @@ void Logger::Print(const std::string& message,
 		switch (type)
 		{
 		case LogType::Default: tag_final = default_tag; break;
-		case LogType::Debug: tag_final = debug_tag; break;
-		case LogType::Warning: tag_final = warning_tag; break;
+		case LogType::Info: tag_final = info_tag; break;
+		case LogType::Debug:
+			if (verbose)
+			{
+				tag_final = debug_tag;
+				break;
+			}
+			else
+				return;
+		case LogType::Warning:
+			if (verbose)
+			{
+				tag_final = warning_tag;
+				break;
+			}
+			else
+				return;
 		case LogType::Error: tag_final = error_tag; break;
 		case LogType::Fatal: tag_final = fatal_tag; break;
 		}

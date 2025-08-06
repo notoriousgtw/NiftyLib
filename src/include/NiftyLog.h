@@ -38,6 +38,7 @@ class Logger
 	enum class LogType
 	{
 		Default,
+		Info,
 		Debug,
 		Warning,
 		Error,
@@ -64,6 +65,21 @@ class Logger
 			  indent.has_value() ? *indent : this->indent,
 			  message_indent.has_value() ? *message_indent : this->message_indent,
 			  false);
+	};
+
+	void Info(const std::string&	 message,
+			  std::string			 extra			= "",
+			  DisplayFlags			 display_flags	= Log::Flags::Null,
+			  std::optional<uint8_t> indent			= std::optional<uint8_t>(),
+			  std::optional<uint8_t> message_indent = std::optional<uint8_t>())
+	{
+		Print(message,
+			  extra,
+			  LogType::Debug,
+			  display_flags,
+			  indent.has_value() ? *indent : this->indent,
+			  message_indent.has_value() ? *message_indent : this->message_indent,
+			  true);
 	};
 
 	void Debug(const std::string&	  message,
@@ -131,6 +147,7 @@ class Logger
 
 	void SetName(std::string name) { this->name = name; }
 	void SetDefaultTag(std::string default_tag) { this->default_tag = default_tag; }
+	void SetInfoTag(std::string info_tag) { this->info_tag = info_tag; }
 	void SetDebugTag(std::string debug_tag) { this->debug_tag = debug_tag; }
 	void SetWarningTag(std::string warning_tag) { this->warning_tag = warning_tag; }
 	void SetErrorTag(std::string error_tag) { this->error_tag = error_tag; }
@@ -155,9 +172,11 @@ class Logger
 	void SetIndent(uint8_t indent) { this->indent = indent; }
 	void SetMessageIndent(uint8_t message_indent) { this->message_indent = message_indent; }
 	void SetDisplayFlags(DisplayFlags display_flags) { this->display_flags = display_flags; }
+	void SetVerbose(bool verbose) { this->verbose = verbose; }
 
   private:
 	std::string	 default_tag	= "";
+	std::string	 info_tag		= "Info";
 	std::string	 debug_tag		= "Debug";
 	std::string	 warning_tag	= "Warn";
 	std::string	 error_tag		= "Error";
@@ -170,6 +189,7 @@ class Logger
 	uint8_t		 message_indent = 1;
 	std::string	 name			= "";
 	DisplayFlags display_flags	= Log::Flags::Default;
+	bool		 verbose		= false;
 
 	void Print(const std::string& message,
 			   const std::string& extra,

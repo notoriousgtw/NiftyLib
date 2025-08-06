@@ -8,6 +8,7 @@
 #include "NiftyLog.h"
 #include "NiftyWindow.h"
 
+#define NOMINMAX
 #include <Windows.h>
 
 namespace nft
@@ -39,7 +40,8 @@ class App
 	}
 
 	~App();
-	Logger* GetLogger() { return &logger; }
+	Logger*		GetLogger() { return &logger; }
+	std::string GetName() { return name; }
 
   private:
 	std::string name;
