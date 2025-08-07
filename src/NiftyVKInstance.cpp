@@ -11,8 +11,18 @@ namespace nft::Vulkan
 {
 Instance::Instance(App* app): app(app)
 {
+	Init();
+	GetExtensions();
+	GetLayers();
+	CheckSupported();
+	CreateInstance();
+}
+
+void Instance::Init()
+{
 	uint32_t version = 0;
 	app->GetLogger()->Debug("Creating Vulkan Instance...", "VKInit");
+
 	vkEnumerateInstanceVersion(&version);
 	std::string version_str = std::to_string(VK_API_VERSION_MAJOR(version)) + "." +
 							  std::to_string(VK_API_VERSION_MINOR(version)) + "." +
@@ -24,7 +34,10 @@ Instance::Instance(App* app): app(app)
 	// version = VK_MAKE_API_VERSION(0, 1, 0, 0); // Or use version 1 for more device compatibility
 
 	app_info = vk::ApplicationInfo(app->GetName().c_str(), 1, "Nifty Engine", 1, version);
+}
 
+void Instance::GetExtensions()
+{
 	uint32_t	 extension_count = 0;
 	const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&extension_count);
 
@@ -32,40 +45,24 @@ Instance::Instance(App* app): app(app)
 
 	app->GetLogger()->Debug("GLFW Extensions Required:", "VKInit");
 	for (const auto& extension : extensions)
-		app->GetLogger()->Debug(
-			std::format("\"{}\"", extension), "", Log::Flags::Default & ~Log::Flags::ShowHeader, 0, 4);
+		app->GetLogger()->Debug(std::format("\"{}\"", extension),
+								"",
+								Log::Flags::Default & ~Log::Flags::ShowHeader,
+								0,
+								4);
 
 #ifdef _DEBUG
-	layers.push_back("VK_LAYER_KHRONOS_validation");
 	extensions.push_back("VK_EXT_debug_utils");
 #endif
-
-	if (!CheckSupported())
-		ErrorHandler::Error<VKInitFatal>("Vulkan Instance Extensions Not Supported!", __func__);
-
-	create_info = vk::InstanceCreateInfo()
-					  .setFlags(vk::InstanceCreateFlags())
-					  .setPApplicationInfo(&app_info)
-					  .setEnabledLayerCount(layers.size())
-					  .setPpEnabledLayerNames(layers.data())
-					  .setEnabledExtensionCount(extensions.size())
-					  .setPpEnabledExtensionNames(extensions.data());
-
-	try
-	{
-		vk_instance = vk::createInstance(create_info, nullptr);
-	}
-	catch (const vk::SystemError err)
-	{
-		ErrorHandler::Error<VKInitFatal>("Failed To Create Vulkan Instance!", __func__);
-	}
-
-#ifdef _DEBUG
-	SetupDebugMessenger();
-#endif
-	app->GetLogger()->Debug("Vulkan Instance Created Successfully!", "VKInit");
 }
-bool Instance::CheckSupported()
+
+void Instance::GetLayers() {
+#ifdef _DEBUG
+	layers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
+}
+
+void Instance::CheckSupported()
 {
 	std::vector<vk::ExtensionProperties> supported_extensions =
 		vk::enumerateInstanceExtensionProperties();
@@ -95,9 +92,7 @@ bool Instance::CheckSupported()
 		}
 		if (!found)
 		{
-			app->GetLogger()->Debug(std::format("Extension {} is not supported!", extension),
-									"VKInit");
-			return false;
+			ErrorHandler::Error<VKInitFatal>(std::format("Instance Extension {} Is Not Supported!", extension), __func__);
 		}
 	}
 
@@ -121,17 +116,14 @@ bool Instance::CheckSupported()
 			if (strcmp(layer, supported_layer.layerName.data()) == 0)
 			{
 				found = true;
-				app->GetLogger()->Debug(std::format("Layer {} is supported!", layer), "VKInit");
+				app->GetLogger()->Debug(std::format("Layer {} Is Supported!", layer), "VKInit");
 			}
 		}
 		if (!found)
 		{
-			app->GetLogger()->Debug(std::format("Layer {} is not supported!", layer), "VKInit");
-			return false;
+			ErrorHandler::Error<VKInitFatal>(std::format("Instance Layer {} Is Not Supported!", layer), __func__);
 		}
 	}
-
-	return true;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL
@@ -164,16 +156,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL
 void Instance::SetupDebugMessenger()
 {
 	dispatch_loader_dynamic = vk::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
-	// debug_messenger_create_info = vk::DebugUtilsMessengerCreateInfoEXT(
-	//	vk::DebugUtilsMessengerCreateFlagsEXT(),
-	//	vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
-	//		vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-	//		vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
-	//	vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-	//		vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-	//		vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
-	//	DebugCallback,
-	//	nullptr);
 
 	debug_messenger_create_info =
 		vk::DebugUtilsMessengerCreateInfoEXT()
@@ -189,12 +171,37 @@ void Instance::SetupDebugMessenger()
 
 	try
 	{
-		debug_messenger = vk_instance.createDebugUtilsMessengerEXT(
+		vk_debug_messenger = vk_instance.createDebugUtilsMessengerEXT(
 			debug_messenger_create_info, nullptr, dispatch_loader_dynamic);
 	}
 	catch (const vk::SystemError err)
 	{
 		ErrorHandler::Error<VKInitFatal>("Failed To Setup Vulkan Debug Messenger!", __func__);
 	}
+}
+
+void Instance::CreateInstance()
+{
+	instance_create_info = vk::InstanceCreateInfo()
+							   .setFlags(vk::InstanceCreateFlags())
+							   .setPApplicationInfo(&app_info)
+							   .setEnabledLayerCount(layers.size())
+							   .setPpEnabledLayerNames(layers.data())
+							   .setEnabledExtensionCount(extensions.size())
+							   .setPpEnabledExtensionNames(extensions.data());
+
+	try
+	{
+		vk_instance = vk::createInstance(instance_create_info, nullptr);
+	}
+	catch (const vk::SystemError err)
+	{
+		ErrorHandler::Error<VKInitFatal>("Failed To Create Vulkan Instance!", __func__);
+	}
+
+#ifdef _DEBUG
+	SetupDebugMessenger();
+#endif
+	app->GetLogger()->Debug("Vulkan Instance Created Successfully!", "VKInit");
 }
 }	 // namespace nft::Vulkan

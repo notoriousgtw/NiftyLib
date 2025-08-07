@@ -26,16 +26,29 @@ class Device
 	Device(App* app, Instance* instance);
 	~Device() = default;
 
-	void ChooseDevice();
+	void Init();
+	void ChoosePhysicalDevice();
 	void LogDeviceProperties();
+	void GetExtensions();
+	void GetLayers();
 	void FindSuitableDevice();
 	void FindQueueFamilies();
+	void CreateDevice();
 
-	Instance*						instance;
-	vk::PhysicalDevice				vk_device = nullptr;
-	App*							app		  = nullptr;
+	Instance* instance = nullptr;
+	App*	  app	   = nullptr;
+
+	vk::PhysicalDevice vk_physical_device = nullptr;
+	vk::Device		   vk_device;
+	vk::Queue		   vk_graphics_queue;
+
 	std::vector<vk::PhysicalDevice> available_devices;
-	std::vector<const char*>		requested_extensions;
-	QueueFamilyIndices				queue_families;
+	QueueFamilyIndices				queue_family_indices;
+	vk::PhysicalDeviceFeatures		device_features;
+	std::vector<const char*>		extensions;
+	std::vector<const char*>		layers;
+
+	vk::DeviceCreateInfo	  device_create_info;
+	vk::DeviceQueueCreateInfo device_queue_create_info;
 };
 }	 // namespace nft::Vulkan

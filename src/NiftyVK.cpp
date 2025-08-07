@@ -23,7 +23,7 @@ void VKHandler::ShutDown()
 {
 	app->GetLogger()->Debug("Destroying Vulkan Instance...", "VKShutdown");
 	instance->vk_instance.destroyDebugUtilsMessengerEXT(
-		instance->debug_messenger, nullptr, instance->dispatch_loader_dynamic);
+		instance->vk_debug_messenger, nullptr, instance->dispatch_loader_dynamic);
 	instance->vk_instance.destroy();
 }
 }	 // namespace nft::Vulkan
