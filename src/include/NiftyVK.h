@@ -7,6 +7,7 @@
 #include "NiftyLog.h"
 #include "NiftyVKInstance.h"
 #include "NiftyVKDevice.h"
+#include "NiftyVKSurface.h"
 
 #include <memory>
 

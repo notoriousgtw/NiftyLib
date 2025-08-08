@@ -37,13 +37,13 @@ void App::Init()
 	// Set GL Version
 	const char* glsl_version = "#version 330";
 
-	// Initialize Vulkan
-	Vulkan::VKHandler::Init(this);
-
 	// Add main window to stack
 	auto window = std::make_unique<GUI::Window>(1280, 720, "Nifty App");
 	main_window = window.get();
 	windows.insert(std::move(window));
+
+	// Initialize Vulkan
+	Vulkan::VKHandler::Init(this);
 
 	PostInit();
 }

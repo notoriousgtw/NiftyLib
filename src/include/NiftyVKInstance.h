@@ -1,5 +1,7 @@
 #pragma once
 
+// #include "NiftyWindow.h"
+
 #include <vulkan/vulkan.hpp>
 
 namespace nft
@@ -10,12 +12,16 @@ class App;
 namespace nft::Vulkan
 {
 class VKHandler;
+class Surface;
+class Device;
 
 class Instance
 {
   public:
 	Instance(App* app);
-	~Instance() = default;
+	~Instance();
+
+	void AddSurface();
 
 	void Init();
 	void GetExtensions();
@@ -24,19 +30,19 @@ class Instance
 	void SetupDebugMessenger();
 	void CreateInstance();
 
-	static VKAPI_ATTR VkBool32 VKAPI_CALL
-		 DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT	   message_severity,
-					   VkDebugUtilsMessageTypeFlagsEXT			   message_type,
-					   const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
-					   void*									   p_user_data);
+	static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT		message_severity,
+														VkDebugUtilsMessageTypeFlagsEXT				message_type,
+														const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
+														void*										p_user_data);
 
-	App*								 app		 = nullptr;
+	App* app = nullptr;
 
-	vk::Instance						 vk_instance = nullptr;
-	vk::DebugUtilsMessengerEXT			 vk_debug_messenger = nullptr;
-	vk::DispatchLoaderDynamic			 dispatch_loader_dynamic;
+	vk::Instance						  vk_instance		 = nullptr;
+	vk::DebugUtilsMessengerEXT			  vk_debug_messenger = nullptr;
+	vk::DispatchLoaderDynamic			  dispatch_loader_dynamic;
+	std::vector<std::unique_ptr<Surface>> surfaces;
 
-	vk::ApplicationInfo					 app_info	 = nullptr;
+	vk::ApplicationInfo					 app_info = nullptr;
 	std::vector<const char*>			 extensions;
 	std::vector<const char*>			 layers;
 	vk::InstanceCreateInfo				 instance_create_info;
