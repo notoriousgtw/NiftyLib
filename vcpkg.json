@@ -1,7 +1,6 @@
 {
   "dependencies": [
-    "glm",
-    "vulkan"
+    "glm"
   ],
   "name": "nifty-lib",
   "description": "",

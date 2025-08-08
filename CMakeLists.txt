@@ -39,6 +39,7 @@ FetchContent_MakeAvailable(glfw)
 
 find_package(glm CONFIG REQUIRED)
 find_package(Vulkan)
+include_directories(${Vulkan_INCLUDE_DIRS})
 
 file(GLOB SOURCES "src/*.cpp")
 
@@ -65,7 +66,7 @@ foreach(SHADER ${SHADERS})
     add_custom_command(
         OUTPUT ${SPIRV}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
-        COMMAND glslangValidator -V ${SHADER} -o ${SPIRV}
+        COMMAND ${Vulkan_GLSLC_EXECUTABLE} ${SHADER} -o ${SPIRV}
         DEPENDS ${SHADER}
         COMMENT "Compiling ${SHADER_NAME} to SPIR-V"
         VERBATIM
