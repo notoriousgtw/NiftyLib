@@ -6,6 +6,7 @@
 #include "NiftyVK.h"
 
 #include <vector>
+#include <GLFW/glfw3.h>
 
 namespace nft::Vulkan
 {
@@ -18,10 +19,29 @@ Instance::Instance(App* app): app(app)
 	CreateInstance();
 }
 
+Instance::~Instance()
+{
+	app->GetLogger()->Debug("Cleaning Up Instance...", "VKShutdown");
+
+	for (auto& Surface : surfaces)
+		Surface.reset();
+
+#ifdef _DEBUG
+	vk_instance.destroyDebugUtilsMessengerEXT(
+		vk_debug_messenger, nullptr, dispatch_loader_dynamic);
+#endif
+
+	vk_instance.destroy();
+}
+
+void Instance::AddSurface() {
+	surfaces.push_back(std::make_unique<Surface>(this));
+}
+
 void Instance::Init()
 {
 	uint32_t version = 0;
-	app->GetLogger()->Debug("Creating Vulkan Instance...", "VKInit");
+	app->GetLogger()->Debug("Creating Instance...", "VKInit");
 
 	vkEnumerateInstanceVersion(&version);
 	std::string version_str = std::to_string(VK_API_VERSION_MAJOR(version)) + "." +
@@ -45,7 +65,7 @@ void Instance::GetExtensions()
 
 	app->GetLogger()->Debug("GLFW Extensions Required:", "VKInit");
 	for (const auto& extension : extensions)
-		app->GetLogger()->Debug(std::format("\"{}\"", extension),
+		app->GetLogger()->Debug(extension,
 								"",
 								Log::Flags::Default & ~Log::Flags::ShowHeader,
 								0,
@@ -70,7 +90,7 @@ void Instance::CheckSupported()
 	app->GetLogger()->Debug("Supported Extensions:", "VKInit");
 	for (vk::ExtensionProperties extension : supported_extensions)
 	{
-		app->GetLogger()->Debug(std::format("\"{}\"", extension.extensionName.data()),
+		app->GetLogger()->Debug(extension.extensionName.data(),
 								"",
 								Log::Flags::Default & ~Log::Flags::ShowHeader,
 								0,
@@ -101,7 +121,7 @@ void Instance::CheckSupported()
 	app->GetLogger()->Debug("Supported Layers:", "VKInit");
 	for (vk::LayerProperties layer : supported_layers)
 	{
-		app->GetLogger()->Debug(std::format("\"{}\"", layer.layerName.data()),
+		app->GetLogger()->Debug(layer.layerName.data(),
 								"",
 								Log::Flags::Default & ~Log::Flags::ShowHeader,
 								0,
@@ -176,7 +196,7 @@ void Instance::SetupDebugMessenger()
 	}
 	catch (const vk::SystemError err)
 	{
-		ErrorHandler::Error<VKInitFatal>("Failed To Setup Vulkan Debug Messenger!", __func__);
+		ErrorHandler::Error<VKInitFatal>("Failed To Setup Debug Messenger!", __func__);
 	}
 }
 
@@ -196,12 +216,12 @@ void Instance::CreateInstance()
 	}
 	catch (const vk::SystemError err)
 	{
-		ErrorHandler::Error<VKInitFatal>("Failed To Create Vulkan Instance!", __func__);
+		ErrorHandler::Error<VKInitFatal>("Failed To Create Instance!", __func__);
 	}
 
 #ifdef _DEBUG
 	SetupDebugMessenger();
 #endif
-	app->GetLogger()->Debug("Vulkan Instance Created Successfully!", "VKInit");
+	app->GetLogger()->Debug("Instance Created Successfully!", "VKInit");
 }
 }	 // namespace nft::Vulkan

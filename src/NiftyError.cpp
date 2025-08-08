@@ -51,7 +51,7 @@ void ErrorHandler::Init(App* app)
 				}
 
 				// Check for errors once a second
-				//std::this_thread::sleep_for(std::chrono::seconds(1));
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 			}
 		})
 		.detach();
