@@ -27,24 +27,26 @@ class Device
 
 		bool IsComplete() { return graphics_family.has_value() && present_family.has_value(); }
 	};
-	Device(App* app, Instance* instance);
-	~Device() = default;
+
+	Device(Instance* instance);
+	~Device();
 
 	void Init();
 	void ChoosePhysicalDevice();
-	void LogDeviceProperties();
 	void GetExtensions();
 	void GetLayers();
 	void FindSuitableDevice();
 	void FindQueueFamilies();
 	void CreateDevice();
+	void GetQueues();
 
 	Instance* instance = nullptr;
 	App*	  app	   = nullptr;
 
 	vk::PhysicalDevice vk_physical_device = nullptr;
 	vk::Device		   vk_device;
-	vk::Queue		   vk_graphics_queue;
+	vk::Queue		   vk_graphics_queue = nullptr;
+	vk::Queue		   vk_present_queue	 = nullptr;
 
 	std::vector<vk::PhysicalDevice> available_devices;
 	QueueFamilyIndices				queue_family_indices;
@@ -52,7 +54,7 @@ class Device
 	std::vector<const char*>		extensions;
 	std::vector<const char*>		layers;
 
-	vk::DeviceCreateInfo	  device_create_info;
-	vk::DeviceQueueCreateInfo device_queue_create_info;
+	vk::DeviceCreateInfo				   device_create_info;
+	std::vector<vk::DeviceQueueCreateInfo> device_queue_create_info;
 };
 }	 // namespace nft::Vulkan

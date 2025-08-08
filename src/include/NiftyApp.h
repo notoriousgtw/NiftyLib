@@ -42,6 +42,7 @@ class App
 	~App();
 	Logger*		GetLogger() { return &logger; }
 	std::string GetName() { return name; }
+	GUI::Window* GetMainWindow() { return main_window; }
 
   private:
 	std::string name;
