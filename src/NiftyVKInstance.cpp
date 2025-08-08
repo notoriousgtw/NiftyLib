@@ -7,6 +7,14 @@
 
 #include <vector>
 
+#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
+namespace vk {
+namespace detail {
+    VULKAN_HPP_STORAGE_API DispatchLoaderDynamic defaultDispatchLoaderDynamic;
+}
+}
+#endif
+
 namespace nft::Vulkan
 {
 Instance::Instance(App* app): app(app)
@@ -155,7 +163,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL
 
 void Instance::SetupDebugMessenger()
 {
-	dispatch_loader_dynamic = vk::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
+	dispatch_loader_dynamic = vk::detail::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
 
 	debug_messenger_create_info =
 		vk::DebugUtilsMessengerCreateInfoEXT()
