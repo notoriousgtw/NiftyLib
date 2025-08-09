@@ -8,16 +8,11 @@
 #include <vector>
 #include <GLFW/glfw3.h>
 
-#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
-namespace vk {
-namespace detail {
-    VULKAN_HPP_STORAGE_API DispatchLoaderDynamic defaultDispatchLoaderDynamic;
-}
-}
-#endif
-
 namespace nft::Vulkan
 {
+
+vk::detail::DynamicLoader Instance::dynamic_loader;
+
 Instance::Instance(App* app): app(app)
 {
 	Init();
@@ -48,6 +43,7 @@ void Instance::AddSurface() {
 
 void Instance::Init()
 {
+	dispatch_loader_dynamic.init(vkGetInstanceProcAddr);
 	uint32_t version = 0;
 	app->GetLogger()->Debug("Creating Instance...", "VKInit");
 
@@ -93,7 +89,7 @@ void Instance::GetLayers() {
 void Instance::CheckSupported()
 {
 	std::vector<vk::ExtensionProperties> supported_extensions =
-		vk::enumerateInstanceExtensionProperties();
+		vk::enumerateInstanceExtensionProperties(nullptr, dispatch_loader_dynamic);
 
 	app->GetLogger()->Debug("Supported Extensions:", "VKInit");
 	for (vk::ExtensionProperties extension : supported_extensions)
@@ -124,7 +120,7 @@ void Instance::CheckSupported()
 		}
 	}
 
-	std::vector<vk::LayerProperties> supported_layers = vk::enumerateInstanceLayerProperties();
+	std::vector<vk::LayerProperties> supported_layers = vk::enumerateInstanceLayerProperties(dispatch_loader_dynamic);
 
 	app->GetLogger()->Debug("Supported Layers:", "VKInit");
 	for (vk::LayerProperties layer : supported_layers)
@@ -183,7 +179,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL
 
 void Instance::SetupDebugMessenger()
 {
-	dispatch_loader_dynamic = vk::detail::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
 
 	debug_messenger_create_info =
 		vk::DebugUtilsMessengerCreateInfoEXT()
@@ -220,12 +215,13 @@ void Instance::CreateInstance()
 
 	try
 	{
-		vk_instance = vk::createInstance(instance_create_info, nullptr);
+		vk_instance = vk::createInstance(instance_create_info, nullptr, dispatch_loader_dynamic);
 	}
 	catch (const vk::SystemError err)
 	{
 		ErrorHandler::Error<VKInitFatal>("Failed To Create Instance!", __func__);
 	}
+	dispatch_loader_dynamic = vk::detail::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
 
 #ifdef _DEBUG
 	SetupDebugMessenger();

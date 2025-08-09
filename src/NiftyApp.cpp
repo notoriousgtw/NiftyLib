@@ -43,7 +43,7 @@ void App::Init()
 	windows.insert(std::move(window));
 
 	// Initialize Vulkan
-	Vulkan::VKHandler::Init(this);
+	Vulkan::VulkanHandler::Init(this);
 
 	PostInit();
 }
@@ -66,7 +66,7 @@ App::~App()
 {
 	// Cleanup
 	// glfwDestroyWindow(window);
-	Vulkan::VKHandler::ShutDown();
+	Vulkan::VulkanHandler::ShutDown();
 	glfwTerminate();
 }
 

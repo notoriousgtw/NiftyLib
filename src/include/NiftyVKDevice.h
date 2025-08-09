@@ -2,10 +2,7 @@
 
 #include <optional>
 
-#ifndef VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#endif
-#include <vulkan/vulkan.hpp>
+#include "NiftyVKCommon.h"
 
 namespace nft
 {
@@ -14,7 +11,7 @@ class App;
 
 namespace nft::Vulkan
 {
-class VKHandler;
+class VulkanHandler;
 class Instance;
 
 class Device
@@ -51,6 +48,7 @@ class Device
 	std::vector<vk::PhysicalDevice> available_devices;
 	QueueFamilyIndices				queue_family_indices;
 	vk::PhysicalDeviceFeatures		device_features;
+	vk::PhysicalDeviceProperties	device_properties;
 	std::vector<const char*>		extensions;
 	std::vector<const char*>		layers;
 

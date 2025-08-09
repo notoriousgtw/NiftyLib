@@ -24,8 +24,9 @@ Surface::~Surface()
 void Surface::SetDevice(Device* device)
 {
 	this->device = device;
-	QuerySwapchainSupport();
+	swapchain	 = std::make_unique<Swapchain>(this);
 	ChooseFormat();
+	ChoosePresentMode();
 }
 
 void Surface::Init()
@@ -206,40 +207,36 @@ void log_surface_present_mode(Logger* logger, Logger::DisplayFlags log_flags, co
 	}
 }
 
-void Surface::QuerySwapchainSupport()
+void Surface::LogSwapchainSupport()
 {
-	swapchain_support_details.capabilities =
-		device->vk_physical_device.getSurfaceCapabilitiesKHR(vk_surface, instance->dispatch_loader_dynamic);
-	swapchain_support_details.formats =
-		device->vk_physical_device.getSurfaceFormatsKHR(vk_surface, instance->dispatch_loader_dynamic);
-	swapchain_support_details.present_modes =
-		device->vk_physical_device.getSurfacePresentModesKHR(vk_surface, instance->dispatch_loader_dynamic);
 
 	Logger::DisplayFlags log_flags = Log::Flags::Default & ~Log::Flags::ShowHeader;
-	log_surface_capabilities(app->GetLogger(), log_flags, swapchain_support_details.capabilities);
-	log_surface_format_support(app->GetLogger(), log_flags, swapchain_support_details.formats);
-	log_surface_present_mode(app->GetLogger(), log_flags, swapchain_support_details.present_modes);
+	log_surface_capabilities(app->GetLogger(), log_flags, swapchain->support_details.capabilities);
+	log_surface_format_support(app->GetLogger(), log_flags, swapchain->support_details.formats);
+	log_surface_present_mode(app->GetLogger(), log_flags, swapchain->support_details.present_modes);
 	return;
 }
+
 void Surface::ChooseFormat()
 {
-	for (auto& supported_format : swapchain_support_details.formats)
+	for (auto& supported_format : swapchain->support_details.formats)
 		if (supported_format.format == vk::Format::eB8G8R8A8Unorm &&
 			supported_format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
 		{
 			this->format = supported_format;
 			return;
 		}
-	this->format = swapchain_support_details.formats[0];
+	this->format = swapchain->support_details.formats[0];
 }
+
 void Surface::ChoosePresentMode()
 {
-	for (auto& supported_present_mode : swapchain_support_details.present_modes)
+	for (auto& supported_present_mode : swapchain->support_details.present_modes)
 		if (supported_present_mode == vk::PresentModeKHR::eMailbox)
 		{
 			this->present_mode = supported_present_mode;
 			return;
 		}
-	this->present_mode = swapchain_support_details.present_modes[0];
+	this->present_mode = swapchain->support_details.present_modes[0];
 }
 }	 // namespace nft::Vulkan
