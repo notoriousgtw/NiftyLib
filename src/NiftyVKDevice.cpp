@@ -35,12 +35,12 @@ void Device::Init()
 void Device::ChoosePhysicalDevice()
 {
 	app->GetLogger()->Debug("Choosing Physical Device...", "VKInit");
-	available_devices = instance->vk_instance.enumeratePhysicalDevices();
+	available_devices = instance->vk_instance.enumeratePhysicalDevices(instance->dispatch_loader_dynamic);
 
 	app->GetLogger()->Debug("Found Physical Devices:", "VKInit");
 	for (const auto& physical_device : available_devices)
 	{
-		vk::PhysicalDeviceProperties device_properties = physical_device.getProperties();
+		device_properties = physical_device.getProperties(instance->dispatch_loader_dynamic);
 
 		std::string device_type;
 		switch (device_properties.deviceType)
@@ -77,15 +77,14 @@ void Device::FindSuitableDevice()
 		std::set<std::string> required_extensions(extensions.begin(), extensions.end());
 		std::set<std::string> required_layers(layers.begin(), layers.end());
 
-		vk::PhysicalDeviceProperties device_properties = physical_device.getProperties();
 		app->GetLogger()->Debug(std::format("{} Supports Extensions:", device_properties.deviceName.data()), "VKInit");
-		for (auto& extension : physical_device.enumerateDeviceExtensionProperties())
+		for (auto& extension : physical_device.enumerateDeviceExtensionProperties(nullptr, instance->dispatch_loader_dynamic))
 		{
 			app->GetLogger()->Debug(extension.extensionName.data(), "", Log::Flags::Default & ~Log::Flags::ShowHeader, 0, 4);
 			required_extensions.erase(extension.extensionName.data());
 		}
 		app->GetLogger()->Debug(std::format("{} Supports Layers:", device_properties.deviceName.data()), "VKInit");
-		for (auto& layer : physical_device.enumerateDeviceLayerProperties())
+		for (auto& layer : physical_device.enumerateDeviceLayerProperties(instance->dispatch_loader_dynamic))
 		{
 			app->GetLogger()->Debug(layer.layerName.data(), "", Log::Flags::Default & ~Log::Flags::ShowHeader, 0, 4);
 			required_layers.erase(layer.layerName.data());
@@ -111,7 +110,8 @@ void Device::FindQueueFamilies()
 	queue_family_indices.graphics_family = std::nullopt;
 	queue_family_indices.present_family	 = std::nullopt;
 
-	std::vector<vk::QueueFamilyProperties> queue_families = vk_physical_device.getQueueFamilyProperties();
+	std::vector<vk::QueueFamilyProperties> queue_families =
+		vk_physical_device.getQueueFamilyProperties(instance->dispatch_loader_dynamic);
 
 	int i = 0;
 	for (const vk::QueueFamilyProperties& queue_family : queue_families)
@@ -178,7 +178,7 @@ void Device::CreateDevice()
 
 void Device::GetQueues()
 {
-	vk_graphics_queue = vk_device.getQueue(queue_family_indices.graphics_family.value(), 0);
-	vk_present_queue  = vk_device.getQueue(queue_family_indices.present_family.value(), 0);
+	vk_graphics_queue = vk_device.getQueue(queue_family_indices.graphics_family.value(), 0, instance->dispatch_loader_dynamic);
+	vk_present_queue  = vk_device.getQueue(queue_family_indices.present_family.value(), 0, instance->dispatch_loader_dynamic);
 }
 }	 // namespace nft::Vulkan

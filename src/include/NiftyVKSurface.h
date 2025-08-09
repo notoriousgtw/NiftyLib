@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
+#include "NiftyVKCommon.h"
 
 namespace nft
 {
@@ -9,20 +9,14 @@ class App;
 
 namespace nft::Vulkan
 {
-class VKHandler;
+class VulkanHandler;
 class Instance;
 class Device;
+class Swapchain;
 
 class Surface
 {
   public:
-	struct SwapchainSupportDetails
-	{
-		vk::SurfaceCapabilitiesKHR		  capabilities;
-		std::vector<vk::SurfaceFormatKHR> formats;
-		std::vector<vk::PresentModeKHR>	  present_modes;
-	};
-
 	Surface(Instance* instance);
 	~Surface();
 
@@ -30,18 +24,19 @@ class Surface
 
 	void SetDevice(Device* device);
 
-	void QuerySwapchainSupport();
+	void LogSwapchainSupport();
 	void ChooseFormat();
 	void ChoosePresentMode();
+	void ChooseSwapchainExtent(uint32_t width, uint32_t height);
 
-	App*	  app	   = nullptr;
-	Instance* instance = nullptr;
-	Device*	  device   = nullptr;
+	App*					   app		= nullptr;
+	Instance*				   instance = nullptr;
+	Device*					   device	= nullptr;
+	std::unique_ptr<Swapchain> swapchain;
 
-	vk::SurfaceKHR			vk_surface;
-	vk::SurfaceFormatKHR	format;
-	vk::PresentModeKHR		present_mode;
-	SwapchainSupportDetails swapchain_support_details;
+	vk::SurfaceKHR		 vk_surface;
+	vk::SurfaceFormatKHR format;
+	vk::PresentModeKHR	 present_mode;
 };
 
 }	 // namespace nft::Vulkan

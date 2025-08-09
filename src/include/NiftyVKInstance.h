@@ -1,18 +1,15 @@
-#pragma once  
+#pragma once
 
-#ifndef VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#endif
-#include <vulkan/vulkan.hpp>  
+#include "NiftyVKCommon.h"
 
-namespace nft  
-{  
-class App;  
-}  
+namespace nft
+{
+class App;
+}
 
 namespace nft::Vulkan
 {
-class VKHandler;
+class VulkanHandler;
 class Surface;
 class Device;
 
@@ -38,9 +35,15 @@ class Instance
 
 	App* app = nullptr;
 
-	vk::Instance						  vk_instance		 = nullptr;
-	vk::DebugUtilsMessengerEXT			  vk_debug_messenger = nullptr;
-	vk::DispatchLoaderDynamic			  dispatch_loader_dynamic;
+	vk::Instance			   vk_instance		  = nullptr;
+	vk::DebugUtilsMessengerEXT vk_debug_messenger = nullptr;
+
+#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
+	vk::detail::DispatchLoaderDynamic dispatch_loader_dynamic;
+	static vk::detail::DynamicLoader  dynamic_loader;
+	PFN_vkGetInstanceProcAddr vkGetInstanceProcAddr = dynamic_loader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
+#endif
+
 	std::vector<std::unique_ptr<Surface>> surfaces;
 
 	vk::ApplicationInfo					 app_info = nullptr;

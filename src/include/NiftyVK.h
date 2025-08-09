@@ -1,16 +1,13 @@
 #pragma once
 
-#define NOMINMAX
-#ifndef VULKAN_HPP_DISPATCH_LOADER_DYNAMIC
-#define VULKAN_HPP_DISPATCH_LOADER_DYNAMIC 1
-#endif
-#include <vulkan/vulkan.hpp>
+#include "NiftyVKCommon.h"
 
 #include "NiftyErrorBase.h"
 #include "NiftyLog.h"
 #include "NiftyVKInstance.h"
 #include "NiftyVKDevice.h"
 #include "NiftyVKSurface.h"
+#include "NiftyVKSwapchain.h"
 
 #include <memory>
 
@@ -23,11 +20,11 @@ namespace nft::Vulkan
 {
 DEFINE_ERROR(VKInitFatal, FatalError)
 
-class VKHandler
+class VulkanHandler
 {
   public:
-	VKHandler()	 = delete;
-	~VKHandler() = delete;
+	VulkanHandler()	 = delete;
+	~VulkanHandler() = delete;
 
 	static void Init(App* app);
 	static void ShutDown();
