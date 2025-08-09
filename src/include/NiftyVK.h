@@ -4,8 +4,8 @@
 
 #include "NiftyErrorBase.h"
 #include "NiftyLog.h"
-#include "NiftyVKInstance.h"
 #include "NiftyVKDevice.h"
+#include "NiftyVKInstance.h"
 #include "NiftyVKSurface.h"
 #include "NiftyVKSwapchain.h"
 
@@ -18,7 +18,10 @@ class App;
 
 namespace nft::Vulkan
 {
-DEFINE_ERROR(VKInitFatal, FatalError)
+struct VKInitFatal: public FatalError<VKInitFatal>
+{
+	VKInitFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
+};
 
 class VulkanHandler
 {

@@ -3,21 +3,25 @@
 #include <algorithm>
 #include <expected>
 #include <glm/vec4.hpp>
-#include <vector>
-#include <string>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "NiftyErrorBase.h"
 
 namespace nft
 {
-//struct ColorEncodingError: public Error
+// struct ColorEncodingError: public Error
 //{
-//  public:
+//   public:
 //	ColorEncodingError(std::string message): Error(std::move(message)) { Init(); }
 //	DEFINE_ERROR_CODE()
-//};
-DEFINE_ERROR(ColorEncodingError, Error)
+// };
+struct ColorEncodingError: public Error<ColorEncodingError>
+{
+	ColorEncodingError(std::string message, std::string function_name = ""):
+		Error<ColorEncodingError>(std::move(message), std::move(function_name)) {};
+};
 
 // struct ColorData
 //{
@@ -48,8 +52,8 @@ class Color
 	explicit constexpr Color(uint32_t data, Encoding encoding = Encoding::RGBA): data(data), encoding(encoding) {}
 	explicit constexpr Color(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255): encoding(Encoding::RGBA)
 	{
-		data = (static_cast<unsigned int>(r) << 24) | (static_cast<unsigned int>(g) << 16) |
-				(static_cast<unsigned int>(b) << 8) | static_cast<unsigned int>(a);
+		data = (static_cast<unsigned int>(r) << 24) | (static_cast<unsigned int>(g) << 16) | (static_cast<unsigned int>(b) << 8) |
+			   static_cast<unsigned int>(a);
 	}
 	constexpr Color(): Color(0, 0, 0, 255) {}
 

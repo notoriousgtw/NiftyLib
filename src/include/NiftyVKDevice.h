@@ -13,6 +13,7 @@ namespace nft::Vulkan
 {
 class VulkanHandler;
 class Instance;
+class Swapchain;
 
 class Device
 {
@@ -22,7 +23,8 @@ class Device
 		std::optional<uint32_t> graphics_family;
 		std::optional<uint32_t> present_family;
 
-		bool IsComplete() { return graphics_family.has_value() && present_family.has_value(); }
+		std::vector<uint32_t> Vec() { return { graphics_family.value_or(UINT32_MAX), present_family.value_or(UINT32_MAX) }; }
+		bool				  IsComplete() { return graphics_family.has_value() && present_family.has_value(); }
 	};
 
 	Device(Instance* instance);
@@ -44,6 +46,8 @@ class Device
 	vk::Device		   vk_device;
 	vk::Queue		   vk_graphics_queue = nullptr;
 	vk::Queue		   vk_present_queue	 = nullptr;
+
+	std::vector<std::unique_ptr<Swapchain>> swapchains;
 
 	std::vector<vk::PhysicalDevice> available_devices;
 	QueueFamilyIndices				queue_family_indices;

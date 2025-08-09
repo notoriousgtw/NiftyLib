@@ -20,11 +20,7 @@ App::App(std::string name)
 #endif
 
 	ErrorHandler::Init(this);
-	EventHandler::Init(this);
-
-	// ErrorHandler::Warn("test warning");
-	// ErrorHandler::Warn("test warning 2");
-	// ErrorHandler::Error<ColorEncodingError>("test error");
+	//EventHandler::Init(this);
 }
 
 void App::Init()
@@ -32,7 +28,7 @@ void App::Init()
 	PreInit();
 
 	// Initialize GLFW
-	if (!glfwInit()) ErrorHandler::Error<FatalError>("Failed to initialize GLFW!");
+	if (!glfwInit()) NFT_ERROR(GLFWFatal, "Failed to initialize GLFW!");
 
 	// Set GL Version
 	const char* glsl_version = "#version 330";

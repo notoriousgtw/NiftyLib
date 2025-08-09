@@ -1,6 +1,7 @@
 #pragma once
 
 #include "NiftyVKCommon.h"
+#include <GLFW/glfw3.h>
 
 namespace nft
 {
@@ -17,7 +18,7 @@ class Swapchain;
 class Surface
 {
   public:
-	Surface(Instance* instance);
+	Surface(Instance* instance, GLFWwindow* window);
 	~Surface();
 
 	void Init();
@@ -25,18 +26,14 @@ class Surface
 	void SetDevice(Device* device);
 
 	void LogSwapchainSupport();
-	void ChooseFormat();
-	void ChoosePresentMode();
-	void ChooseSwapchainExtent(uint32_t width, uint32_t height);
 
 	App*					   app		= nullptr;
 	Instance*				   instance = nullptr;
 	Device*					   device	= nullptr;
+	GLFWwindow*				   window	= nullptr;
 	std::unique_ptr<Swapchain> swapchain;
 
 	vk::SurfaceKHR		 vk_surface;
-	vk::SurfaceFormatKHR format;
-	vk::PresentModeKHR	 present_mode;
 };
 
 }	 // namespace nft::Vulkan

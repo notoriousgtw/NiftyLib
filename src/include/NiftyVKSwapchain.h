@@ -1,6 +1,7 @@
 #pragma once
 
 #include "NiftyVKCommon.h"
+#include <GLFW/glfw3.h>
 
 namespace nft
 {
@@ -27,11 +28,13 @@ class Swapchain
 	Swapchain(Surface* surface);
 	~Swapchain();
 	void			 Init();
-	void			 CreateSwapchain(uint32_t width, uint32_t height);
+	void			 CreateSwapchain();
 	void			 CreateImageViews() {};
 	void			 CreateFramebuffers() {};
 	Surface*		 GetSurface() { return surface; }
 	vk::SwapchainKHR GetSwapchain() { return vk_swapchain; }
+
+	void LogSupportDetails();
 
 	App*	  app	   = nullptr;
 	Surface*  surface  = nullptr;
@@ -45,7 +48,11 @@ class Swapchain
 	std::vector<vk::Image> images;
 	// std::vector<vk::ImageView>	 image_views;
 	// std::vector<vk::Framebuffer> framebuffers;
-	vk::Format	 format;
-	vk::Extent2D extent;
+	vk::Extent2D		 extent		 = vk::Extent2D(0, 0);
+	uint32_t			 image_count = 0;
+	vk::SurfaceFormatKHR format;
+	vk::PresentModeKHR	 present_mode;
+
+	vk::SwapchainCreateInfoKHR create_info;
 };
 }	 // namespace nft::Vulkan

@@ -54,6 +54,8 @@ class App
 
 	// void CreateInstance();
 
+	//virtual void RegisterErrors() = 0;
+	//virtual void RegisterEvents() = 0;
 	virtual void PreInit()	= 0;
 	virtual void PostInit() = 0;
 	void		 BeginFrameCore();

@@ -4,7 +4,6 @@
 
 namespace nft::Vulkan
 {
-DECLARE_ERROR_CODE(VKInitFatal, "VKInitFatal")
 
 App*					  VulkanHandler::app	  = nullptr;
 std::unique_ptr<Instance> VulkanHandler::instance = nullptr;
@@ -24,6 +23,8 @@ void VulkanHandler::Init(App* app)
 
 	// Create Vulkan Logical Device
 	device	 = std::make_unique<Device>(instance.get());
+
+	instance->dispatch_loader_dynamic.init(instance->vk_instance, device->vk_device);
 
 	instance->surfaces.at(0)->SetDevice(device.get());
 }

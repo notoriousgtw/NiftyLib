@@ -26,19 +26,19 @@ Instance::~Instance()
 {
 	app->GetLogger()->Debug("Cleaning Up Instance...", "VKShutdown");
 
-	for (auto& Surface : surfaces)
-		Surface.reset();
+	for (auto& surface : surfaces)
+		surface.reset();
 
 #ifdef _DEBUG
 	vk_instance.destroyDebugUtilsMessengerEXT(
 		vk_debug_messenger, nullptr, dispatch_loader_dynamic);
 #endif
 
-	vk_instance.destroy();
+	vk_instance.destroy(nullptr, dispatch_loader_dynamic);
 }
 
 void Instance::AddSurface() {
-	surfaces.push_back(std::make_unique<Surface>(this));
+	surfaces.push_back(std::make_unique<Surface>(this, app->GetMainWindow()->GetGLFWWindow()));
 }
 
 void Instance::Init()

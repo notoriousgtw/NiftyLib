@@ -1,6 +1,5 @@
 #pragma once
 
-// #include "NiftyUtil.h"
 #include "NiftyApp.h"
 #include "NiftyErrorBase.h"
 #include "NiftyLog.h"
@@ -12,6 +11,8 @@
 namespace nft
 {
 
+#define NFT_ERROR(Err, Msg) ErrorHandler::Error<Err>(Msg, __func__)
+
 class ErrorHandler
 {
   public:
@@ -20,37 +21,41 @@ class ErrorHandler
 
 	static void Init(App* app);
 
-	// Method to add an Error object to the list
 	template<typename T, typename... Args>
 	static void Error(Args&&... args)
 	{
-		auto ptr = std::make_unique<T>(std::forward<Args>(args)...);
-		errors.push_back(std::move(ptr));
-	}
-	static void Warn(std::string message, std::string function_name = "")
-	{
-		Error<Warning>(message, function_name);
-	};
-	static void Register(const std::string& code)
-	{
-		static std::unordered_set<std::string> codes;
-		static std::mutex					   mtx;
-		std::lock_guard<std::mutex>			   lock(mtx);
-		if (!codes.insert(code).second)
+		auto error = std::make_unique<T>(std::forward<Args>(args)...);
+
+		std::string extra;
+		if (!error->function_name.empty())
+			extra = error->GetCode() + "->" + error->function_name;
+		else
+			extra = error->GetCode();
+
+		switch (error->type)
 		{
-			// app->GetLogger()->Fatal("Code: \"" + code + "\"",
-			//						DuplicateErrorCodeError::StaticCode());
-			// std::exit(EXIT_FAILURE);
-			Error<DuplicateErrorCodeError>("Code: \"" + code + "\"");
+		case ErrorType::Warning: app->GetLogger()->Warn(error->message, extra); break;
+		case ErrorType::Error: app->GetLogger()->Error(error->message, extra); break;
+		case ErrorType::Fatal:
+			app->GetLogger()->Fatal(error->message, extra);
+			std::exit(EXIT_FAILURE);	// Immediately terminate for fatal errors
 		}
-		app->GetLogger()->Debug("Registered code: \"" + code + "\"", "ErrorHandler");
 	}
 
-	// Method to retrieve all stored errors
-	// const std::vector<std::unique_ptr<Error>>& GetErrors() const;
+	template<typename E>
+	static void Register()
+	{
+		static_assert(std::is_base_of<ErrorBase<E>, E>::value, "E must derive from ErrorBase");
+		const std::string code = E::GetCode();
+		if (!error_codes.insert(code).second)
+		{
+			NFT_ERROR(DuplicateErrorCodeError, "Duplicate error code registered: " + code);
+		}
+		app->GetLogger()->Debug("Registered Error: \"" + code + "\"", "ErrorHandler");
+	}
+
   private:
-	// List to store objects derived from Error
-	static std::vector<std::unique_ptr<ErrorBase>> errors;
-	static App*									   app;
+	static App*							   app;
+	static std::unordered_set<std::string> error_codes;
 };
 }	 // namespace nft

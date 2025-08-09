@@ -15,6 +15,8 @@ Device::Device(Instance* instance): app(app), instance(instance)
 	app = this->instance->app;
 	Init();
 	ChoosePhysicalDevice();
+	GetExtensions();
+	//GetLayers();
 	FindSuitableDevice();
 	FindQueueFamilies();
 	CreateDevice();
@@ -24,7 +26,9 @@ Device::Device(Instance* instance): app(app), instance(instance)
 Device::~Device()
 {
 	app->GetLogger()->Debug("Cleaning Up Device...", "VKShutdown");
-	vk_device.destroy();
+	for (auto& swapchain : swapchains)
+		swapchain.reset();
+	vk_device.destroy(nullptr, instance->dispatch_loader_dynamic);
 }
 
 void Device::Init()
@@ -96,10 +100,6 @@ void Device::FindSuitableDevice()
 			return;
 		}
 	}
-
-#ifdef _DEBUG
-	layers.push_back("VK_LAYER_KHRONOS_validation");
-#endif
 
 	ErrorHandler::Error<VKInitFatal>("Failed To Find Suitable Device!", __func__);
 }

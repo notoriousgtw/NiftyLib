@@ -1,9 +1,11 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <unordered_set>
+#include <vector>
 
 #include "NiftyApp.h"
 #include "NiftyError.h"
@@ -12,77 +14,32 @@
 namespace nft
 {
 
+class Event;
+
 class Observer
 {
   public:
-	using Callback = std::function<void(void)>;
-	Observer(EventBase* event, Callback callback): event(event) {};
-
-	void SetCallback(Callback callback)
-	{
-		std::lock_guard<std::mutex> lock(callback_mutex);
-		this->callback = callback;
-	}
-
-	void TriggerCallback()
-	{
-		std::lock_guard<std::mutex> lock(callback_mutex);
-		if (callback) { callback(); }
-	}
-
-	bool CheckEvent(EventBase* event) { return this->event == event; }
-
-  private:
-	EventBase* event;
-	Callback   callback;
-	std::mutex callback_mutex;
+	virtual ~Observer()	  = default;
+	virtual void Update(Event* source) = 0;
 };
 
-class EventHandler
+class Event
 {
   public:
-	EventHandler()	= delete;
-	~EventHandler() = delete;
-
-	static void Init(App* app);
-
-	template<typename T, typename... Args>
-	static void Observe(Args... args)
+	void Attach(std::shared_ptr<Observer> observer) { observers.push_back(observer); }
+	void Detach(std::shared_ptr<Observer> observer)
 	{
-		auto ptr		= std::make_unique<T>(std::forward<Args>(args)...);
-		auto event_pair = events.emplace(std::move(ptr));
-
-		if (!event_pair.second)
-		{
-			ptr.reset();
-			return;
-		}
-
-		T*							event	 = event_pair.first->get();
-		auto						observer = std::make_shared<Observer>(event);
-		std::lock_guard<std::mutex> lock(observers_mutex);
-		observers.insert(observer);
+		observers.erase(std::remove(observers.begin(), observers.end(), observer), observers.end());
 	}
-
-	static void Register(const std::string& code)
+	void Notify()
 	{
-		static std::unordered_set<std::string> codes;
-		static std::mutex					   mtx;
-		std::lock_guard<std::mutex>			   lock(mtx);
-		if (!codes.insert(code).second)
-		{
-			ErrorHandler::Error<DuplicateEventCodeError>("Code: \"" + code + "\"");
-		}
-		app->GetLogger()->Debug("Registered code: \"" + code + "\"", "EventHandler");
+		for (auto& observer : observers)
+			if (observer)
+				observer->Update(this);
 	}
 
   private:
-	static std::unordered_set<std::shared_ptr<Observer>>  observers;
-	static std::mutex									  observers_mutex;
-	static std::unordered_set<std::unique_ptr<EventBase>> events;
-	static App*											  app;
+	std::vector<std::shared_ptr<Observer>> observers;
 };
-
-// Static member definitions
 
 }	 // namespace nft
