@@ -18,8 +18,7 @@ void Logger::Print(const std::string& message,
 	std::string color_str;
 	if (color.encoding != Color::Encoding::Console)
 	{
-		ErrorHandler::Error<ColorEncodingError>(
-			"Color encoding is not set to Console! Defaulting to no color.");
+		NFT_ERROR(ColorEncodingError, "Color encoding is not set to Console! Defaulting to no color.");
 		color_str = "0";
 	}
 	else

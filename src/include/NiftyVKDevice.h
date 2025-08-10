@@ -11,7 +11,6 @@ class App;
 
 namespace nft::Vulkan
 {
-class VulkanHandler;
 class Instance;
 class Swapchain;
 

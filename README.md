@@ -1,7 +1,3 @@
-# NiftyScallop
+# NiftyApp
 
-NiftyScallop is an ImGui application that calculates router offsets for use in scalloping a guitar fretboard.
-
-# TODO
-
-Finish refactor and create NiftyLib as separate project.
+NiftyApp is an example application using NiftyLib, a library designed to provide various utilities and features for building applications.

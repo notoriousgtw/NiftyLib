@@ -10,7 +10,6 @@ class App;
 
 namespace nft::Vulkan
 {
-class VulkanHandler;
 class Instance;
 class Device;
 class Swapchain;
@@ -24,8 +23,6 @@ class Surface
 	void Init();
 
 	void SetDevice(Device* device);
-
-	void LogSwapchainSupport();
 
 	App*					   app		= nullptr;
 	Instance*				   instance = nullptr;

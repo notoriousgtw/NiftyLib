@@ -10,7 +10,6 @@ class App;
 
 namespace nft::Vulkan
 {
-class VulkanHandler;
 class Instance;
 class Device;
 class Surface;
@@ -23,6 +22,15 @@ class Swapchain
 		vk::SurfaceCapabilitiesKHR		  capabilities;
 		std::vector<vk::SurfaceFormatKHR> formats;
 		std::vector<vk::PresentModeKHR>	  present_modes;
+	};
+
+	struct Frame
+	{
+		vk::Image				image	   = nullptr;
+		vk::ImageView			image_view = nullptr;
+		vk::ImageViewCreateInfo create_info;
+
+		//bool IsComplete() const { return (!image || !image_view) ? false : true; }
 	};
 
 	Swapchain(Surface* surface);
@@ -45,7 +53,7 @@ class Swapchain
 
 	vk::SwapchainKHR vk_swapchain;
 
-	std::vector<vk::Image> images;
+	std::vector<Frame> images;
 	// std::vector<vk::ImageView>	 image_views;
 	// std::vector<vk::Framebuffer> framebuffers;
 	vk::Extent2D		 extent		 = vk::Extent2D(0, 0);

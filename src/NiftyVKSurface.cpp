@@ -11,9 +11,9 @@ namespace nft::Vulkan
 Surface::Surface(Instance* instance, GLFWwindow* window): instance(instance), window(window)
 {
 	if (!instance)
-		ErrorHandler::Error<VKInitFatal>("Instance is null!", __func__);
+		NFT_ERROR(VKInitFatal, "Instance is null!");
 	if (!window)
-		ErrorHandler::Error<VKInitFatal>("Window is null!", __func__);
+		NFT_ERROR(VKInitFatal, "Window is null!");
 	app = this->instance->app;
 	Init();
 }

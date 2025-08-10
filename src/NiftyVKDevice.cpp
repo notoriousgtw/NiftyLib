@@ -11,7 +11,7 @@ namespace nft::Vulkan
 Device::Device(Instance* instance): app(app), instance(instance)
 {
 	if (!instance)
-		ErrorHandler::Error<VKInitFatal>("Instance is null!", __func__);
+		NFT_ERROR(VKInitFatal, "Instance is null!");
 	app = this->instance->app;
 	Init();
 	ChoosePhysicalDevice();
@@ -101,7 +101,7 @@ void Device::FindSuitableDevice()
 		}
 	}
 
-	ErrorHandler::Error<VKInitFatal>("Failed To Find Suitable Device!", __func__);
+	NFT_ERROR(VKInitFatal, "Failed To Find Suitable Device!");
 }
 
 void Device::FindQueueFamilies()
@@ -170,7 +170,7 @@ void Device::CreateDevice()
 	}
 	catch (const vk::SystemError err)
 	{
-		ErrorHandler::Error<VKInitFatal>("Failed To Create Logical Device!", __func__);
+		NFT_ERROR(VKInitFatal, "Failed To Create Logical Device!");
 	}
 
 	app->GetLogger()->Debug("Logical Device Created Successfully!", "VKInit");

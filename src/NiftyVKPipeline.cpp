@@ -1,17 +1,19 @@
 #include "NiftyVKPipeline.h"
 
+#include "NiftyApp.h"
+#include "NiftyError.h"
+#include "NiftyVK.h"
+
 namespace nft::Vulkan
 {
-Pipeline::Pipeline()
+Pipeline::Pipeline(Device* device)
 {
-	// Initialize the pipeline
-	Create();
+	if (!device)
+		NFT_ERROR(VKInitFatal, "Device is null!");
+	this->device = device;
+	app			 = this->device->app;
+	Init();
 }
 
-void Pipeline::Create()
-{
-	std::println("Creating vulkan pipeline...");
-	std::println("Vertex shader code size: {}", simple_shader_vert_len);
-	std::println("Fragment shader code size: {}", simple_shader_frag_len);
-}
-}
+void Pipeline::Init() {}
+}	 // namespace nft::Vulkan

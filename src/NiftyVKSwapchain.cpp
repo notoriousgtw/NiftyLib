@@ -9,7 +9,7 @@ namespace nft::Vulkan
 Swapchain::Swapchain(Surface* surface): surface(surface)
 {
 	if (!surface)
-		ErrorHandler::Error<VKInitFatal>("Surface Is Null!", __func__);
+		NFT_ERROR(VKInitFatal, "Surface Is Null!");
 	this->instance = surface->instance;
 	this->device   = surface->device;
 	app			   = this->instance->app;
@@ -17,13 +17,23 @@ Swapchain::Swapchain(Surface* surface): surface(surface)
 	CreateSwapchain();
 }
 
-Swapchain::~Swapchain() {
+Swapchain::~Swapchain()
+{
+	for (auto& frame : images)
+	{
+		if (frame.image_view)
+		{
+			device->vk_device.destroyImageView(frame.image_view, nullptr, instance->dispatch_loader_dynamic);
+			frame.image_view = nullptr;
+		}
+	}
 	device->vk_device.destroySwapchainKHR(vk_swapchain, nullptr, instance->dispatch_loader_dynamic);
 }
 
 void Swapchain::Init()
 {
-	app->GetLogger()->Debug(std::format("Creating Swapchain For Window: \"{}\"...", glfwGetWindowTitle(surface->window)), "VKInit");
+	app->GetLogger()->Debug(std::format("Creating Swapchain For Window: \"{}\"...", glfwGetWindowTitle(surface->window)),
+							"VKInit");
 }
 void Swapchain::CreateSwapchain()
 {
@@ -111,11 +121,40 @@ void Swapchain::CreateSwapchain()
 	}
 	catch (const vk::SystemError err)
 	{
-		ErrorHandler::Error<VKInitFatal>(err.what(), __func__);
+		NFT_ERROR(VKInitFatal, err.what());
 	}
 
-	images = device->vk_device.getSwapchainImagesKHR(vk_swapchain, instance->dispatch_loader_dynamic);
-	app->GetLogger()->Debug(std::format("Swapchain For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(surface->window)), "VKInit");
+	std::vector<vk::Image> image_vec = device->vk_device.getSwapchainImagesKHR(vk_swapchain, instance->dispatch_loader_dynamic);
+	this->images.resize(image_vec.size());
+
+	for (size_t i = 0; i < image_vec.size(); i++)
+	{
+		auto& frame		  = images.at(i);
+		frame.image		  = image_vec.at(i);
+		frame.create_info = vk::ImageViewCreateInfo()
+								.setFlags(vk::ImageViewCreateFlags())
+								.setImage(frame.image)
+								.setViewType(vk::ImageViewType::e2D)
+								.setFormat(format.format)
+								.setComponents(vk::ComponentMapping())
+								.setSubresourceRange(vk::ImageSubresourceRange()
+														 .setAspectMask(vk::ImageAspectFlagBits::eColor)
+														 .setBaseMipLevel(0)
+														 .setLevelCount(1)
+														 .setBaseArrayLayer(0)
+														 .setLayerCount(1));
+		try
+		{
+			frame.image_view = device->vk_device.createImageView(frame.create_info, nullptr, instance->dispatch_loader_dynamic);
+		}
+		catch (const vk::SystemError& err)
+		{
+			NFT_ERROR(VKInitFatal, std::format("Failed To Create Image View:\n    {}", err.what()));
+		}
+	}
+
+	app->GetLogger()->Debug(
+		std::format("Swapchain For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(surface->window)), "VKInit");
 }
 
 void log_image_capabilites(Logger* logger, Logger::DisplayFlags log_flags, const vk::SurfaceCapabilitiesKHR& capabilities)

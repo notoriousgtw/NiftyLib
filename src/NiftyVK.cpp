@@ -11,7 +11,7 @@ std::unique_ptr<Device>	  VulkanHandler::device	  = nullptr;
 
 void VulkanHandler::Init(App* app)
 {
-	if (!app) ErrorHandler::Error<VKInitFatal>("App Is Null!", __func__);
+	if (!app) NFT_ERROR(VKInitFatal, "App Is Null!");
 	app->GetLogger()->Debug("Initializing Vulkan Handler...", "VKInit");
 	VulkanHandler::app = app;
 

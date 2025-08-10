@@ -9,7 +9,6 @@ class App;
 
 namespace nft::Vulkan
 {
-class VulkanHandler;
 class Surface;
 class Device;
 

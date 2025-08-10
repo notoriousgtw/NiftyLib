@@ -1,5 +1,7 @@
 #include "NiftyWindow.h"
 
+#include "NiftyError.h"
+
 namespace nft::GUI
 {
 void Window::Init()
@@ -10,6 +12,6 @@ void Window::Init()
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 	window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
-	if (window == NULL) throw("Failed to create window!");
+	if (window == NULL) NFT_ERROR(GLFWFatal, std::format("Failed to create window: \"{}\"", title));
 }
 }	 // namespace nft::GUI

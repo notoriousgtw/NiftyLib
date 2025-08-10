@@ -116,7 +116,7 @@ void Instance::CheckSupported()
 		}
 		if (!found)
 		{
-			ErrorHandler::Error<VKInitFatal>(std::format("Instance Extension {} Is Not Supported!", extension), __func__);
+			NFT_ERROR(VKInitFatal, std::format("Instance Extension {} Is Not Supported!", extension));
 		}
 	}
 
@@ -145,7 +145,7 @@ void Instance::CheckSupported()
 		}
 		if (!found)
 		{
-			ErrorHandler::Error<VKInitFatal>(std::format("Instance Layer {} Is Not Supported!", layer), __func__);
+			NFT_ERROR(VKInitFatal, std::format("Instance Layer {} Is Not Supported!", layer));
 		}
 	}
 }
@@ -199,7 +199,7 @@ void Instance::SetupDebugMessenger()
 	}
 	catch (const vk::SystemError err)
 	{
-		ErrorHandler::Error<VKInitFatal>("Failed To Setup Debug Messenger!", __func__);
+		NFT_ERROR(VKInitFatal, "Failed To Setup Debug Messenger!");
 	}
 }
 
@@ -219,7 +219,7 @@ void Instance::CreateInstance()
 	}
 	catch (const vk::SystemError err)
 	{
-		ErrorHandler::Error<VKInitFatal>("Failed To Create Instance!", __func__);
+		NFT_ERROR(VKInitFatal, "Failed To Create Instance!");
 	}
 	dispatch_loader_dynamic = vk::detail::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
 
