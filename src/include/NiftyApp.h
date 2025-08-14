@@ -7,9 +7,7 @@
 
 #include "NiftyLog.h"
 #include "NiftyWindow.h"
-
-#define NOMINMAX
-#include <Windows.h>
+#include "NiftyVKRender.h"
 
 namespace nft
 {
@@ -40,8 +38,8 @@ class App
 	}
 
 	~App();
-	Logger*		GetLogger() { return &logger; }
-	std::string GetName() { return name; }
+	Logger*		 GetLogger() { return &logger; }
+	std::string	 GetName() { return name; }
 	GUI::Window* GetMainWindow() { return main_window; }
 
   private:
@@ -54,8 +52,8 @@ class App
 
 	// void CreateInstance();
 
-	//virtual void RegisterErrors() = 0;
-	//virtual void RegisterEvents() = 0;
+	// virtual void RegisterErrors() = 0;
+	// virtual void RegisterEvents() = 0;
 	virtual void PreInit()	= 0;
 	virtual void PostInit() = 0;
 	void		 BeginFrameCore();
@@ -64,5 +62,13 @@ class App
 	virtual void EndFrame()	  = 0;
 	void		 EndFrameCore();
 	void		 Render();
+
+	double last_time = 0;
+	double current_time = 0;
+	int	   num_frames = 0;
+	int	   frame_rate = 0;
+	float  frame_time = 0;
+
+	void CalcFrameTime();
 };
 }	 // namespace nft

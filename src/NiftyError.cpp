@@ -16,11 +16,14 @@ void ErrorHandler::Init(App* app)
 {
 	app->GetLogger()->Debug("Registering System Error Codes...", "ErrorHandler");
 	ErrorHandler::app = app;
-	Register<DuplicateErrorCodeError>();
-	Register<GLFWFatal>();
-	//Register<DuplicateEventCodeError>();
-	Register<ColorEncodingError>();
-	Register<Vulkan::VKInitFatal>();
+	NFT_REGISTER_ERROR(DuplicateErrorCodeFatal);
+	NFT_REGISTER_ERROR(GLFWWarning);
+	NFT_REGISTER_ERROR(GLFWError);
+	NFT_REGISTER_ERROR(GLFWFatal);
+	NFT_REGISTER_ERROR(VKWarning);
+	NFT_REGISTER_ERROR(VKError);
+	NFT_REGISTER_ERROR(VKFatal);
+	NFT_REGISTER_ERROR(ColorEncodingError);
 	app->GetLogger()->Debug("System Error Codes Successfully Registered!", "ErrorHandler");
 }
 }	 // namespace nft

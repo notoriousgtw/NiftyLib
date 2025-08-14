@@ -12,6 +12,10 @@ namespace nft
 {
 
 #define NFT_ERROR(Err, Msg) ErrorHandler::Error<Err>(Msg, __func__)
+#define NFT_REGISTER_ERROR(Err) ErrorHandler::Register<Err>()
+// #define NFT_WARN(Msg) ErrorHandler::Error<Warning>(Msg, __func__)
+// #define NFT_ERROR(Msg) ErrorHandler::Error<Error>(Msg, __func__)
+// #define NFT_FATAL(Msg) ErrorHandler::Error<FatalError>(Msg, __func__)
 
 class ErrorHandler
 {
@@ -45,11 +49,12 @@ class ErrorHandler
 	template<typename E>
 	static void Register()
 	{
-		static_assert(std::is_base_of<ErrorBase<E>, E>::value, "E must derive from ErrorBase");
+		//static_assert(std::is_base_of<Warning, E>::value || std::is_base_of<nft::Error, E>::value || std::is_base_of<FatalError, E>::value,
+		//			  "E must derive from Error");
 		const std::string code = E::GetCode();
 		if (!error_codes.insert(code).second)
 		{
-			NFT_ERROR(DuplicateErrorCodeError, "Duplicate error code registered: " + code);
+			NFT_ERROR(DuplicateErrorCodeFatal, "Duplicate error code registered: " + code);
 		}
 		app->GetLogger()->Debug("Registered Error: \"" + code + "\"", "ErrorHandler");
 	}

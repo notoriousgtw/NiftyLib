@@ -2,12 +2,12 @@
 
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <typeinfo>
+#include <unordered_set>
 
 #if defined(__GNUG__)
-#include <cxxabi.h>
 #include <cstdlib>
+#include <cxxabi.h>
 #endif
 
 // #include "NiftyApp.h"
@@ -27,10 +27,10 @@ enum class ErrorType : uint8_t
 };
 
 template<typename Derived>
-struct ErrorBase
+struct IError
 {
   public:
-	ErrorBase(std::string message, std::string function_name, ErrorType type):
+	IError(std::string message, std::string function_name, ErrorType type):
 		message(message), function_name(function_name), type(type) {};
 	static std::string GetCode()
 	{
@@ -51,22 +51,22 @@ struct ErrorBase
 		name = typeid(Derived).name();
 #endif
 		// Remove namespaces
-		 size_t pos = name.rfind("::");
-		 if (pos != std::string::npos)
+		size_t pos = name.rfind("::");
+		if (pos != std::string::npos)
 		{
 			name = name.substr(pos + 2);
-		 }
+		}
 		// Remove "struct " or "class " prefix if present
-		 const std::string struct_prefix = "struct ";
-		 const std::string class_prefix	= "class ";
-		 if (name.compare(0, struct_prefix.size(), struct_prefix) == 0)
+		const std::string struct_prefix = "struct ";
+		const std::string class_prefix	= "class ";
+		if (name.compare(0, struct_prefix.size(), struct_prefix) == 0)
 		{
 			name = name.substr(struct_prefix.size());
-		 }
-		 else if (name.compare(0, class_prefix.size(), class_prefix) == 0)
+		}
+		else if (name.compare(0, class_prefix.size(), class_prefix) == 0)
 		{
 			name = name.substr(class_prefix.size());
-		 }
+		}
 		return name;
 	}
 
@@ -108,34 +108,65 @@ struct ErrorBase
 // #define REGISTER_ERROR(CLASS) ErrorHandler::Register<CLASS>()
 
 template<typename Derived>
-struct Warning: public ErrorBase<Derived>
+struct Warning: public IError<Derived>
 {
 	Warning(std::string message, std::string function_name = ""):
-		ErrorBase<Derived>(std::move(message), std::move(function_name), ErrorType::Warning) {};
+		IError<Derived>(std::move(message), std::move(function_name), ErrorType::Warning) {};
 };
 
 template<typename Derived>
-struct Error: public ErrorBase<Derived>
+struct Error: public IError<Derived>
 {
 	Error(std::string message, std::string function_name = ""):
-		ErrorBase<Derived>(std::move(message), std::move(function_name), ErrorType::Error) {};
+		IError<Derived>(std::move(message), std::move(function_name), ErrorType::Error) {};
 };
 
 template<typename Derived>
-struct FatalError: public ErrorBase<Derived>
+struct FatalError: public IError<Derived>
 {
 	FatalError(std::string message, std::string function_name = ""):
-		ErrorBase<Derived>(std::move(message), std::move(function_name), ErrorType::Fatal) {};
+		IError<Derived>(std::move(message), std::move(function_name), ErrorType::Fatal) {};
 };
 
-struct DuplicateErrorCodeError: public FatalError<DuplicateErrorCodeError>
+struct DuplicateErrorCodeFatal: public FatalError<DuplicateErrorCodeFatal>
 {
-	DuplicateErrorCodeError(std::string message, std::string function_name = ""):
+	DuplicateErrorCodeFatal(std::string message, std::string function_name = ""):
 		FatalError(std::move(message), std::move(function_name)) {};
+};
+
+struct GLFWWarning: public Warning<GLFWWarning>
+{
+	GLFWWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
+};
+
+struct GLFWError: public Error<GLFWError>
+{
+	GLFWError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
 };
 
 struct GLFWFatal: public FatalError<GLFWFatal>
 {
 	GLFWFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
+};
+
+struct VKWarning: public Warning<VKWarning>
+{
+	VKWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
+};
+
+struct VKError: public Error<VKError>
+{
+	VKError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+};
+
+struct VKFatal: public FatalError<VKFatal>
+{
+	VKFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
+};
+
+struct ColorEncodingError: public Error<ColorEncodingError>
+{
+	ColorEncodingError(std::string message, std::string function_name = ""):
+		Error(std::move(message), std::move(function_name)) {};
 };
 }	 // namespace nft

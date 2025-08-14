@@ -17,11 +17,6 @@ namespace nft
 //	ColorEncodingError(std::string message): Error(std::move(message)) { Init(); }
 //	DEFINE_ERROR_CODE()
 // };
-struct ColorEncodingError: public Error<ColorEncodingError>
-{
-	ColorEncodingError(std::string message, std::string function_name = ""):
-		Error<ColorEncodingError>(std::move(message), std::move(function_name)) {};
-};
 
 // struct ColorData
 //{

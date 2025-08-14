@@ -1,3 +1,9 @@
+//=============================================================================
+// VULKAN SHADER IMPLEMENTATION
+//=============================================================================
+// This file implements the Vulkan shader module management, including
+// shader module creation and cleanup.
+
 #include "NiftyVKShader.h"
 
 #include "NiftyApp.h"
@@ -6,28 +12,45 @@
 
 namespace nft::Vulkan
 {
-Shader::Shader(Device* device, ShaderCode code): device(device), code(code)
+
+//=============================================================================
+// CONSTRUCTOR & DESTRUCTOR
+//=============================================================================
+
+Shader::Shader(Device* device, ShaderCode code) : device(device), code(code)
 {
+	// Validate input parameters
 	if (!device)
-		NFT_ERROR(VKInitFatal, "Device Is Null!");
+		NFT_ERROR(VKFatal, "Device Is Null!");
 	if (!code.data || code.size == 0)
-		NFT_ERROR(VKInitFatal, "Shader Code Is Null Or Empty!");
-	app		 = this->device->app;
-	instance = this->device->instance;
+		NFT_ERROR(VKFatal, "Shader Code Is Null Or Empty!");
 
-	create_info = vk::ShaderModuleCreateInfo().setFlags(vk::ShaderModuleCreateFlags()).setCodeSize(code.size).setPCode(code.data);
+	// Initialize references
+	app		 = device->GetApp();
+	instance = device->GetInstance();
 
+	// Create shader module info structure
+	vk_shader_module_info = vk::ShaderModuleCreateInfo()
+								.setFlags(vk::ShaderModuleCreateFlags())
+								.setCodeSize(code.size)
+								.setPCode(code.data);
+
+	// Create the shader module
 	try
 	{
-		vk_shader_module = device->vk_device.createShaderModule(create_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_shader_module = device->GetDevice().createShaderModule(
+			vk_shader_module_info, nullptr, instance->GetDispatchLoader());
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKInitFatal, std::format("Failed To Create Shader Module: \n{}", err.what()));
+		NFT_ERROR(VKFatal, std::format("Failed To Create Shader Module:\n{}", err.what()));
 	}
 }
+
 Shader::~Shader()
 {
-	device->vk_device.destroyShaderModule(vk_shader_module, nullptr, instance->dispatch_loader_dynamic);
+	// Clean up the shader module
+	device->GetDevice().destroyShaderModule(vk_shader_module, nullptr, instance->GetDispatchLoader());
 }
+
 }	 // namespace nft::Vulkan
