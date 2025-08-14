@@ -8,9 +8,13 @@ void SimpleMesh::AddVertex(VertexData vertex)
 {
 	vertices.push_back(vertex.x);
 	vertices.push_back(vertex.y);
+	vertices.push_back(vertex.z);
 	vertices.push_back(vertex.r);
 	vertices.push_back(vertex.g);
 	vertices.push_back(vertex.b);
+	vertices.push_back(vertex.a);
+	vertices.push_back(vertex.u);
+	vertices.push_back(vertex.v);
 	vertex_count++;
 }
 
@@ -22,10 +26,10 @@ GeometryBatcher::GeometryBatcher(Device* device): device(device)
 
 void GeometryBatcher::AddGeometry(const IMesh* mesh)
 {
-	// Calculate vertex count - each vertex has 5 floats (x, y, r, g, b)
-	size_t vertex_count = mesh->vertices.size() / 5;
+	// Calculate vertex count - each vertex has 9 floats (x, y, z, r, g, b, a, u, v)
+	size_t vertex_count = mesh->vertices.size() / 9;
 	// Calculate current vertex offset in the batched buffer (number of vertices, not bytes)
-	size_t vertex_offset = vertex_data.size() / 5;
+	size_t vertex_offset = vertex_data.size() / 9;
 
 	mesh_data[mesh] = { vertex_offset, vertex_count };
 	vertex_data.insert(vertex_data.end(), mesh->vertices.begin(), mesh->vertices.end());

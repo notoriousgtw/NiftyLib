@@ -33,7 +33,7 @@ vk::VertexInputBindingDescription GetVertexInputBindingDescription()
 {
 	vk::VertexInputBindingDescription binding_description;
 	binding_description.binding	  = 0;								 // Binding index
-	binding_description.stride	  = 5 * sizeof(float);				 // Size of each vertex
+	binding_description.stride	  = 9 * sizeof(float);				 // Size of each vertex
 	binding_description.inputRate = vk::VertexInputRate::eVertex;	 // Per-vertex data
 	return binding_description;
 }
@@ -44,13 +44,19 @@ std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescript
 	attribute_descriptions.reserve(2);
 	// Position attribute
 	attribute_descriptions.push_back(
-		vk::VertexInputAttributeDescription().setBinding(0).setLocation(0).setFormat(vk::Format::eR32G32Sfloat).setOffset(0));
+		vk::VertexInputAttributeDescription().setBinding(0).setLocation(0).setFormat(vk::Format::eR32G32B32Sfloat).setOffset(0));
 	// Color attribute
 	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
 										 .setBinding(0)
 										 .setLocation(1)
-										 .setFormat(vk::Format::eR32G32B32Sfloat)
-										 .setOffset(2 * sizeof(float)));
+										 .setFormat(vk::Format::eR32G32B32A32Sfloat)
+										 .setOffset(3 * sizeof(float)));
+	// Texture Coordinate attribute
+	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
+										 .setBinding(0)
+										 .setLocation(2)
+										 .setFormat(vk::Format::eR32G32Sfloat)
+										 .setOffset(7 * sizeof(float)));
 	return attribute_descriptions;
 }
 }	 // namespace nft::Vulkan

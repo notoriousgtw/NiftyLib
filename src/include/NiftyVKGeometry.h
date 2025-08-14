@@ -11,8 +11,9 @@ class IMesh
   public:
 	struct VertexData
 	{
-		float x, y;		  // Position
-		float r, g, b;	  // Color
+		float x, y, z;		 // Position
+		float r, g, b, a;	 // Color
+		float u, v;			 // Texture Coordinate
 	};
 
 	IMesh() = default;
@@ -46,8 +47,8 @@ class GeometryBatcher
   public:
 	struct MeshData
 	{
-		size_t		 offset;	// Offset in the vertex_data vector
-		size_t		 size;		// Number of vertices in the mesh
+		size_t offset;	  // Offset in the vertex_data vector
+		size_t size;	  // Number of vertices in the mesh
 	};
 
 	GeometryBatcher(Device* device);
@@ -59,10 +60,10 @@ class GeometryBatcher
 	Buffer* GetVertexBuffer() const { return vertex_buffer; }
 
   private:
-	Device*				  device;	 // Device used for Vulkan operations
+	Device*							 device;	// Device used for Vulkan operations
 	std::map<const IMesh*, MeshData> mesh_data;
-	std::vector<float>	  vertex_data;
-	size_t				  current_offset = 0;	 // Current offset in the vertex_data vector
+	std::vector<float>				 vertex_data;
+	size_t							 current_offset = 0;	// Current offset in the vertex_data vector
 
 	Buffer* vertex_buffer;
 

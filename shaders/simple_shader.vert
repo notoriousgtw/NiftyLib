@@ -12,7 +12,7 @@ layout (std140, set = 0, binding = 1) readonly buffer StorageBuffer {
 } ObjectData;
 
 layout (location = 0) in vec3 vertex_position;
-layout (location = 1) in vec3 vertex_color;
+layout (location = 1) in vec4 vertex_color;
 layout (location = 2) in vec2 vertex_texture_coord;
 
 layout (location = 0) out vec3 frag_color;

@@ -1213,10 +1213,7 @@ void Surface::Frame::Prepare()
 	if (!scene)
 		NFT_ERROR(VKFatal, "Scene pointer is null!");
 	if (!camera_data_buffer)
-	{
 		NFT_ERROR(VKFatal, "Camera data buffer is not initialized!");
-		return;
-	}
 
 
 
