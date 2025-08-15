@@ -42,15 +42,17 @@ find_package(glm CONFIG REQUIRED)
 find_package(Vulkan)
 include_directories(${Vulkan_INCLUDE_DIRS})
 
-file(GLOB SOURCES "src/*.cpp")
+# Recurse all cpp sources in new folder layout
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 
 add_library(NiftyLib ${SOURCES})
 
 target_compile_definitions(NiftyLib PRIVATE GLFW_STATIC)
+# Public include directory now lives in include/; keep generated headers in src/generated
 target_include_directories(NiftyLib PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/generated>
-    $<INSTALL_INTERFACE:src/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/generated>
+    $<INSTALL_INTERFACE:include>
 )
 
 file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag")
@@ -61,8 +63,8 @@ find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
 foreach(SHADER ${SHADERS})
     get_filename_component(SHADER_NAME ${SHADER} NAME)
-    set(SPIRV "${CMAKE_CURRENT_BINARY_DIR}/shaders/${SHADER_NAME}.spv")
-    set(HEADER "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/${SHADER_NAME}.spv.h")
+    set(SPIRV "${CMAKE_CURRENT_BINARY_DIR}/src/shaders/${SHADER_NAME}.spv")
+    set(HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/generated/${SHADER_NAME}.spv.h")
 
     add_custom_command(
         OUTPUT ${SPIRV}
@@ -75,7 +77,7 @@ foreach(SHADER ${SHADERS})
 
     add_custom_command(
         OUTPUT "${HEADER}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/src/generated"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/include/generated"
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/spv_to_header.py" "${SPIRV}" "${HEADER}"
         DEPENDS "${SPIRV}"
         COMMENT "Converting ${SPIRV} to header in source tree"
@@ -91,7 +93,10 @@ add_custom_target(ShaderHeaders DEPENDS ${GENERATED_HEADERS})
 add_dependencies(ShaderHeaders ShaderSpvFiles)
 add_dependencies(NiftyLib ShaderHeaders)
 
-target_sources(NiftyLib PRIVATE ${GENERATED_HEADERS})
+# Ensure generated headers are part of target sources for IDEs
+if(GENERATED_HEADERS)
+    target_sources(NiftyLib PRIVATE ${GENERATED_HEADERS})
+endif()
 
 install(TARGETS NiftyLib EXPORT NiftyLibTargets
         RUNTIME DESTINATION bin
@@ -108,7 +113,7 @@ install(EXPORT NiftyLibTargets
 
 # Install generated shader headers
 install(
-    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/generated/"
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/generated/"
     DESTINATION include/generated
     FILES_MATCHING PATTERN "*.spv.h"
 )
