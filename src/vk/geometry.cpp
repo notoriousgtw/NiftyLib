@@ -1,6 +1,6 @@
-#include "vk/NiftyVKGeometry.h"
+#include "vk/geometry.h"
 
-#include "vk/NiftyVK.h"
+#include "vk/handler.h"
 
 namespace nft::vulkan
 {

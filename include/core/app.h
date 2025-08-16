@@ -1,13 +1,10 @@
 #pragma once
 
-// #define GLM_FORCE_RADIANS
-// #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include "core/log.h"
+#include "gui/window.h"
+#include "vk/scene.h"
 
 #include <set>
-
-#include "core/NiftyLog.h"
-#include "gui/NiftyWindow.h"
-#include "vk/NiftyVKRender.h"
 
 namespace nft
 {

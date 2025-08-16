@@ -3,7 +3,7 @@
 #include <optional>
 #include <print>
 
-#include "core/NiftyColor.h"
+#include "core/color.h"
 
 namespace nft
 {

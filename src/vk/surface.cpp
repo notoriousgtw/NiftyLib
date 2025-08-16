@@ -4,15 +4,18 @@
 // This file implements the Vulkan surface management, including swapchain
 // creation, pipeline setup, and all related rendering resources.
 
-#include "vk/NiftyVKSurface.h"
-#include "GLFW/glfw3.h"
-#include "core/NiftyApp.h"
-#include "core/NiftyError.h"
-#include "vk/NiftyVK.h"
+#include "vk/surface.h"
+
+#include "core/app.h"
+#include "core/error.h"
+
+#include "vk/handler.h"
+#include "vk/scene.h"
+
+#include <GLFW/glfw3.h>
 
 #include <../generated/simple_shader.frag.spv.h>
 #include <../generated/simple_shader.vert.spv.h>
-#include <vk/NiftyVKRender.h>
 
 namespace nft::vulkan
 {
@@ -36,9 +39,10 @@ Surface::Surface(Instance* instance, Device* device, GLFWwindow* window):
 	rasterization_stage(device, instance),
 	multisample_stage(device, instance),
 	color_blend_stage(device, instance),
-	scene_set_layout(device, instance),
-	mesh_set_layout(device, instance),
-	descriptor_pool(device, instance),
+	frame_set_layout(this),
+	mesh_set_layout(this),
+	frame_descriptor_pool(device, instance),
+	mesh_descriptor_pool(device, instance),
 	pipeline_layout(device, instance),
 	render_pass(device, instance),
 	clear_color(vk::ClearColorValue(std::array<float, 4> { 0.2f, 0.2f, 0.2f, 1.0f })),
@@ -286,19 +290,26 @@ void Surface::CreatePipeline()
 	multisample_stage.Init();
 	color_blend_stage.Init();
 
-	std::vector<DescriptorSetLayout::Binding> bindings = {
+	std::vector<DescriptorSetLayout::Binding> frame_bindings = {
 		{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex },
 		{ 1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eVertex }
 	};
 
-	scene_set_layout.Init(bindings);
+	frame_set_layout.Init(frame_bindings);
 
-	descriptor_pool.Init(bindings, frames.size());
+	std::vector<DescriptorSetLayout::Binding> mesh_bindings = {
+		{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment }
+	};
+
+	mesh_set_layout.Init(mesh_bindings);
+
+	frame_descriptor_pool.Init(frame_bindings, frames.size());
+	mesh_descriptor_pool.Init(mesh_bindings, scene->textures.size());
 
 	for (auto& frame : frames)
 		frame.AllocateDescriptorResources();
 
-	pipeline_layout.Init(scene_set_layout.vk_descriptor_set_layout);
+	pipeline_layout.Init(vk_descriptor_set_layouts);
 	render_pass.Init(format.format);
 
 	// Create pipeline info with all stages
@@ -687,7 +698,8 @@ void Surface::Cleanup()
 
 		CleanupSwapchain();
 
-		scene_set_layout.Cleanup();
+		frame_set_layout.Cleanup();
+		mesh_set_layout.Cleanup();
 
 		app->GetLogger()->Debug("Surface Vulkan objects cleaned up successfully", "VKShutdown");
 	}
@@ -954,9 +966,9 @@ void Surface::Frame::AllocateDescriptorResources()
 		return;
 	}
 	vk::DescriptorSetAllocateInfo alloc_info = vk::DescriptorSetAllocateInfo()
-												   .setDescriptorPool(surface->descriptor_pool.vk_descriptor_pool)
+												   .setDescriptorPool(surface->frame_descriptor_pool.vk_descriptor_pool)
 												   .setDescriptorSetCount(1)
-												   .setPSetLayouts(&surface->scene_set_layout.vk_descriptor_set_layout);
+												   .setPSetLayouts(&surface->frame_set_layout.vk_descriptor_set_layout);
 	try
 	{
 		vk_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info, surface->instance->dispatch_loader_dynamic)[0];

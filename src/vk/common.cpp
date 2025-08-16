@@ -4,7 +4,7 @@
 // This file provides the implementation for common Vulkan functionality,
 // primarily the dynamic dispatch loader for Vulkan C++ bindings.
 
-#include "vk/NiftyVKCommon.h"
+#include "vk/Common.h"
 
 //=============================================================================
 // DYNAMIC DISPATCH LOADER IMPLEMENTATION

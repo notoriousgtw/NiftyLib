@@ -1,7 +1,7 @@
-#include "gui/NiftyWindow.h"
+#include "gui/window.h"
 
-#include "core/NiftyError.h"
-#include "vk/NiftyVK.h"
+#include "core/error.h"
+#include "vk/handler.h"
 
 namespace nft::GUI
 {

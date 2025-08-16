@@ -1,6 +1,6 @@
-#include "vk/NiftyVKUtil.h"
+#include "vk/util.h"
 
-#include "vk/NiftyVK.h"
+#include "vk/handler.h"
 
 namespace nft::vulkan
 {
@@ -85,6 +85,16 @@ void  ColorBlendStage::Init()
 							  .setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 }
 
+DescriptorSetLayout::DescriptorSetLayout(Surface* surface): surface(surface), device(surface->device), instance(surface->instance)
+{
+	if (!surface)
+		NFT_ERROR(VKFatal, "Surface Is Null!");
+	if (!device)
+		NFT_ERROR(VKFatal, "Device Is Null!");
+	if (!instance)
+		NFT_ERROR(VKFatal, "Instance Is Null!");
+}
+
 void  DescriptorSetLayout::Init(std::vector<Binding> bindings)
 {
 	std::vector<vk::DescriptorSetLayoutBinding> vk_bindings;
@@ -114,6 +124,8 @@ void  DescriptorSetLayout::Init(std::vector<Binding> bindings)
 	{
 		NFT_ERROR(VKFatal, std::format("Failed To Create Descriptor Set Layout:\n{}", err.what()));
 	}
+
+	surface->vk_descriptor_set_layouts.push_back(vk_descriptor_set_layout);
 }
 
 void  DescriptorSetLayout::Cleanup()
@@ -123,6 +135,7 @@ void  DescriptorSetLayout::Cleanup()
 		device->vk_device.destroyDescriptorSetLayout(vk_descriptor_set_layout, nullptr, instance->dispatch_loader_dynamic);
 		vk_descriptor_set_layout = VK_NULL_HANDLE;
 	}
+
 }
 
 void  DescriptorPool::Init(std::vector<Binding> bindings, uint32_t count)
@@ -157,12 +170,12 @@ void  DescriptorPool::Cleanup()
 	}
 }
 
-void  PipelineLayout::Init(vk::DescriptorSetLayout descriptor_set_layout)
+void  PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts)
 {
 	vk_pipeline_layout_info = vk::PipelineLayoutCreateInfo()
 								  .setFlags(vk::PipelineLayoutCreateFlags())
-								  .setSetLayoutCount(1)
-								  .setPSetLayouts(&descriptor_set_layout);
+								  .setSetLayoutCount(descriptor_set_layouts.size())
+								  .setPSetLayouts(descriptor_set_layouts.data());
 
 	// vk::PushConstantRange push_constant_range =
 	//	vk::PushConstantRange().setOffset(0).setSize(sizeof(glm::mat4)).setStageFlags(vk::ShaderStageFlagBits::eVertex);

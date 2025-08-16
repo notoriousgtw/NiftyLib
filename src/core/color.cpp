@@ -1,6 +1,4 @@
-#include "core/NiftyColor.h"
-
-#include "core/NiftyError.h"
+#include "core/color.h"
 
 namespace nft
 {

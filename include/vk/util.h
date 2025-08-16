@@ -6,8 +6,8 @@
 // This header contains utility functions for common Vulkan operations
 // such as creating synchronization objects.
 
-#include "vk/NiftyVKCommon.h"
-#include "vk/NiftyVKShader.h"
+#include "vk/Common.h"
+#include "vk/Shader.h"
 
 namespace nft::vulkan
 {
@@ -115,7 +115,7 @@ namespace nft::vulkan
 			vk::ShaderStageFlags stages;
 		};
 
-		DescriptorSetLayout(Device* device, Instance* instance): device(device), instance(instance) {};
+		DescriptorSetLayout(Surface* surface);
 		void Init(std::vector<Binding> bindings);
 		void Cleanup();
 
@@ -123,6 +123,7 @@ namespace nft::vulkan
 		vk::DescriptorSetLayoutCreateInfo vk_descriptor_set_layout_info;
 
 	  private:
+		Surface*  surface;
 		Device*	  device;
 		Instance* instance;
 	};
@@ -148,7 +149,7 @@ namespace nft::vulkan
 	struct PipelineLayout
 	{
 		PipelineLayout(Device* device, Instance* instance): device(device), instance(instance) {};
-		void Init(vk::DescriptorSetLayout descriptor_set_layout);
+		void Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts);
 		void Cleanup();
 
 		vk::PipelineLayout			 vk_pipeline_layout = VK_NULL_HANDLE;

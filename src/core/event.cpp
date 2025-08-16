@@ -1,4 +1,4 @@
-#include "core/NiftyEvent.h"
+#include "core/event.h"
 
 #include <thread>
 

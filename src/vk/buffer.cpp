@@ -1,6 +1,6 @@
-#include "vk/NiftyVKBuffer.h"
+#include "vk/buffer.h"
 
-#include "vk/NiftyVK.h"
+#include "vk/handler.h"
 
 namespace nft::vulkan
 {

@@ -1,6 +1,6 @@
-#include "vk/NiftyVKRender.h"
+#include "vk/scene.h"
 
-#include "vk/NiftyVK.h"
+#include "vk/handler.h"
 
 namespace nft::vulkan
 {

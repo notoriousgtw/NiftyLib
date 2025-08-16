@@ -1,11 +1,11 @@
 #pragma once
 
 // Core includes
-#include "core/NiftyError.h"
-#include "core/NiftyApp.h"
-#include "vk/NiftyVKCommon.h"
-#include "vk/NiftyVKShader.h"
-#include "vk/NiftyVKUtil.h"
+#include "core/app.h"
+#include "core/error.h"
+#include "vk/common.h"
+#include "vk/shader.h"
+#include "vk/util.h"
 #include <GLFW/glfw3.h>
 
 namespace nft::vulkan
@@ -210,20 +210,22 @@ class Surface
 	vk::CommandPoolCreateInfo vk_command_pool_info;
 
 	// Pipeline objects (integrated for performance)
-	vk::Pipeline				   vk_pipeline = VK_NULL_HANDLE;
-	std::vector<ShaderStage>	   shader_stages;
-	VertexInputStage			   vertex_input_stage;
-	InputAssemblyStage			   input_assembly_stage;
-	ViewportStage				   viewport_stage;
-	RasterizationStage			   rasterization_stage;
-	MultisampleStage			   multisample_stage;
-	ColorBlendStage				   color_blend_stage;
-	DescriptorSetLayout			   scene_set_layout;
-	DescriptorSetLayout			   mesh_set_layout;
-	DescriptorPool				   descriptor_pool;
-	PipelineLayout				   pipeline_layout;
-	RenderPass					   render_pass;
-	vk::GraphicsPipelineCreateInfo vk_pipeline_info;
+	vk::Pipeline						 vk_pipeline = VK_NULL_HANDLE;
+	std::vector<ShaderStage>			 shader_stages;
+	VertexInputStage					 vertex_input_stage;
+	InputAssemblyStage					 input_assembly_stage;
+	ViewportStage						 viewport_stage;
+	RasterizationStage					 rasterization_stage;
+	MultisampleStage					 multisample_stage;
+	ColorBlendStage						 color_blend_stage;
+	DescriptorSetLayout					 frame_set_layout;
+	DescriptorSetLayout					 mesh_set_layout;
+	std::vector<vk::DescriptorSetLayout> vk_descriptor_set_layouts;
+	DescriptorPool						 frame_descriptor_pool;
+	DescriptorPool						 mesh_descriptor_pool;
+	PipelineLayout						 pipeline_layout;
+	RenderPass							 render_pass;
+	vk::GraphicsPipelineCreateInfo		 vk_pipeline_info;
 
 	// Rendering state
 	size_t				   max_frames_in_flight = 2;
@@ -238,6 +240,21 @@ class Surface
 	//=========================================================================
 	// PRIVATE HELPER METHODS
 	//=========================================================================
+
+
+	friend struct ShaderStage;
+	friend struct VertexShaderStage;
+	friend struct FragmentShaderStage;
+	friend struct VertexInputStage;
+	friend struct InputAssemblyStage;
+	friend struct ViewportStage;
+	friend struct RasterizationStage;
+	friend struct MultisampleStage;
+	friend struct ColorBlendStage;
+	friend struct DescriptorSetLayout;
+	friend struct DescriptorPool;
+	friend struct PipelineLayout;
+	friend struct RenderPass;
 };
 
 }	 // namespace nft::vulkan

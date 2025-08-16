@@ -4,11 +4,13 @@
 // This file implements the Vulkan instance management, including extension
 // and layer validation, debug messenger setup, and instance creation.
 
-#include "vk/NiftyVKInstance.h"
-#include "core/NiftyApp.h"
-#include "core/NiftyError.h"
-#include "core/NiftyLog.h"
-#include "vk/NiftyVK.h"
+#include "vk/instance.h"
+
+#include "core/app.h"
+#include "core/error.h"
+#include "core/log.h"
+
+#include "vk/handler.h"
 
 #include <vector>
 #include <GLFW/glfw3.h>

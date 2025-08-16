@@ -1,8 +1,8 @@
 #pragma once
 
 #include "vk/Image.h"
-#include "vk/NiftyVKCommon.h"
-#include "vk/NiftyVKGeometry.h"
+#include "vk/Common.h"
+#include "vk/Geometry.h"
 
 namespace nft::vulkan
 {

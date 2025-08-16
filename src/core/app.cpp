@@ -1,9 +1,10 @@
-#include "core/NiftyApp.h"
+#include "core/app.h"
 
-#include "core/NiftyError.h"
-#include "core/NiftyEvent.h"
-#include "core/NiftyLog.h"
-#include "vk/NiftyVK.h"
+#include "core/error.h"
+#include "core/event.h"
+#include "core/log.h"
+
+#include "vk/handler.h"
 
 // #include <chrono>
 // #include <thread>

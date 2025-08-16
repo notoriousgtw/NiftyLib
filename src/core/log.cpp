@@ -1,7 +1,7 @@
+#include "core/log.h"
 
-#include "core/NiftyLog.h"
+#include "core/error.h"
 
-#include "core/NiftyError.h"
 #include <regex>
 
 namespace nft

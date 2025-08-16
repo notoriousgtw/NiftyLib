@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/NiftyApp.h"
-#include "core/NiftyErrorBase.h"
-#include "core/NiftyLog.h"
+#include "core/app.h"
+#include "core/error_base.h"
+#include "core/log.h"
 
 #include <memory>
 #include <string>

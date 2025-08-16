@@ -1,4 +1,4 @@
-#include "core/NiftyNum.h"
+#include "core/num.h"
 
 namespace nft::Num
 {

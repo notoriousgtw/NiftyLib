@@ -1,8 +1,6 @@
-#include "core/NiftyError.h"
-#include "core/NiftyErrorBase.h"
-#include "core/NiftyColor.h"
-#include "vk/NiftyVK.h"
-#include "core/NiftyEvent.h"
+#include "core/error.h"
+
+#include "core/error_base.h"
 
 #include <thread>
 

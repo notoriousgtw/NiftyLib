@@ -4,11 +4,12 @@
 // This file implements the Vulkan shader module management, including
 // shader module creation and cleanup.
 
-#include "vk/NiftyVKShader.h"
+#include "vk/shader.h"
 
-#include "core/NiftyApp.h"
-#include "core/NiftyError.h"
-#include "vk/NiftyVK.h"
+#include "core/app.h"
+#include "core/error.h"
+
+#include "vk/handler.h"
 
 namespace nft::vulkan
 {

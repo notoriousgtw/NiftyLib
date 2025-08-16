@@ -10,15 +10,15 @@
 #undef CreateSemaphore
 #endif
 
-#include "core/NiftyLog.h"
-#include "vk/NiftyVKCommon.h"
-#include "vk/NiftyVKDevice.h"
-#include "vk/NiftyVKInstance.h"
-#include "vk/NiftyVKSurface.h"
-#include "vk/NiftyVKShader.h"
-#include "vk/NiftyVKRender.h"
-#include "vk/NiftyVKBuffer.h"
-#include "vk/NiftyVKGeometry.h"
+#include "core/log.h"
+#include "vk/common.h"
+#include "vk/device.h"
+#include "vk/instance.h"
+#include "vk/surface.h"
+#include "vk/shader.h"
+#include "vk/scene.h"
+#include "vk/buffer.h"
+#include "vk/geometry.h"
 
 #include <memory>
 

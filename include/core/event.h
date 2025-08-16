@@ -7,8 +7,8 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/NiftyApp.h"
-#include "core/NiftyError.h"
+#include "core/app.h"
+#include "core/error.h"
 
 namespace nft
 {

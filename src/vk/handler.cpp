@@ -3,9 +3,9 @@
 //=============================================================================
 // This file implements the main Vulkan handler that coordinates the
 // initialization and management of Vulkan resources.
+#include "vk/handler.h"
 
-#include "core/NiftyError.h"
-#include "vk/NiftyVK.h"
+#include "core/error.h"
 
 namespace nft::vulkan
 {

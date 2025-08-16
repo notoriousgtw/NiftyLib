@@ -1,6 +1,6 @@
 #pragma once
 
-#include <core/NiftyNum.h>
+#include <core/num.h>
 #include <etc/NiftySVG.h>
 #include <etc/NiftyStik.h>
 #include <etc/NiftyStikSVGTemplates.h>

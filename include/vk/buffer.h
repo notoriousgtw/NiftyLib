@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vk/NiftyVKCommon.h"
+#include "vk/Common.h"
 
 namespace nft::vulkan
 {

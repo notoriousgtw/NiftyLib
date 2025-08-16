@@ -4,11 +4,13 @@
 // This file implements the Vulkan logical device management, including
 // physical device selection, queue family discovery, and device creation.
 
-#include "vk/NiftyVKDevice.h"
-#include "core/NiftyApp.h"
-#include "core/NiftyError.h"
-#include "vk/NiftyVK.h"
-#include "vk/NiftyVKBuffer.h"
+#include "vk/device.h"
+
+#include "core/app.h"
+#include "core/error.h"
+
+#include "vk/handler.h"
+#include "vk/buffer.h"
 
 #include <set>
 #include "vulkan/vulkan_win32.h"
