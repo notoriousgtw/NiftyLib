@@ -11,10 +11,5 @@
 //=============================================================================
 // Required for VULKAN_HPP_DISPATCH_LOADER_DYNAMIC mode
 
-#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
-namespace vk {
-namespace detail {
-    VULKAN_HPP_STORAGE_API DispatchLoaderDynamic defaultDispatchLoaderDynamic;
-}
-}
-#endif
+// Define the default dispatch loader dynamic storage
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE

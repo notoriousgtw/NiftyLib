@@ -9,7 +9,7 @@ namespace nft::vulkan
 // PIPELINE STAGE IMPLEMENTATIONS
 //=============================================================================
 
-void  VertexInputStage::Init()
+void VertexInputStage::Init()
 {
 	binding_description	   = GetVertexInputBindingDescription();
 	attribute_descriptions = GetVertexInputAttributeDescriptions();
@@ -22,14 +22,14 @@ void  VertexInputStage::Init()
 							   .setPVertexAttributeDescriptions(attribute_descriptions.data());
 }
 
-void  InputAssemblyStage::Init()
+void InputAssemblyStage::Init()
 {
 	vk_input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo()
 								 .setFlags(vk::PipelineInputAssemblyStateCreateFlags())
 								 .setTopology(vk::PrimitiveTopology::eTriangleList);
 }
 
-void  ViewportStage::Init(vk::Extent2D extent)
+void ViewportStage::Init(vk::Extent2D extent)
 {
 	viewport.setX(0.0f)
 		.setY(0.0f)
@@ -46,7 +46,7 @@ void  ViewportStage::Init(vk::Extent2D extent)
 								 .setPScissors(&scissor);
 }
 
-void  RasterizationStage::Init()
+void RasterizationStage::Init()
 {
 	vk_rasterization_info = vk::PipelineRasterizationStateCreateInfo()
 								.setFlags(vk::PipelineRasterizationStateCreateFlags())
@@ -59,7 +59,7 @@ void  RasterizationStage::Init()
 								.setDepthBiasEnable(VK_FALSE);
 }
 
-void  MultisampleStage::Init()
+void MultisampleStage::Init()
 {
 	vk_multisample_info = vk::PipelineMultisampleStateCreateInfo()
 							  .setFlags(vk::PipelineMultisampleStateCreateFlags())
@@ -71,7 +71,7 @@ void  MultisampleStage::Init()
 							  .setAlphaToOneEnable(VK_FALSE);
 }
 
-void  ColorBlendStage::Init()
+void ColorBlendStage::Init()
 {
 	color_blend_attachment = vk::PipelineColorBlendAttachmentState().setBlendEnable(VK_FALSE).setColorWriteMask(
 		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
@@ -85,17 +85,23 @@ void  ColorBlendStage::Init()
 							  .setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
 }
 
-DescriptorSetLayout::DescriptorSetLayout(Surface* surface): surface(surface), device(surface->device), instance(surface->instance)
+DescriptorSetLayout::DescriptorSetLayout(Surface* surface):
+	surface(surface), device(surface->device)
 {
 	if (!surface)
 		NFT_ERROR(VKFatal, "Surface Is Null!");
 	if (!device)
 		NFT_ERROR(VKFatal, "Device Is Null!");
-	if (!instance)
-		NFT_ERROR(VKFatal, "Instance Is Null!");
 }
 
-void  DescriptorSetLayout::Init(std::vector<Binding> bindings)
+DescriptorSetLayout::DescriptorSetLayout(Device* device):
+	surface(nullptr), device(device)
+{
+	if (!device)
+		NFT_ERROR(VKFatal, "Device Is Null!");
+}
+
+void DescriptorSetLayout::Init(std::vector<Binding> bindings)
 {
 	std::vector<vk::DescriptorSetLayoutBinding> vk_bindings;
 	vk_bindings.reserve(bindings.size());
@@ -117,33 +123,36 @@ void  DescriptorSetLayout::Init(std::vector<Binding> bindings)
 										.setPBindings(vk_bindings.data());
 	try
 	{
-		vk_descriptor_set_layout = device->vk_device.createDescriptorSetLayout(
-			vk_descriptor_set_layout_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_descriptor_set_layout =
+			device->vk_device.createDescriptorSetLayout(vk_descriptor_set_layout_info);
 	}
 	catch (const vk::SystemError& err)
 	{
 		NFT_ERROR(VKFatal, std::format("Failed To Create Descriptor Set Layout:\n{}", err.what()));
 	}
 
-	surface->vk_descriptor_set_layouts.push_back(vk_descriptor_set_layout);
+	if (surface)
+		surface->vk_descriptor_set_layouts.push_back(vk_descriptor_set_layout);
 }
 
-void  DescriptorSetLayout::Cleanup()
+void DescriptorSetLayout::Cleanup()
 {
-	if (vk_descriptor_set_layout && device && device->vk_device && instance)
+	if (vk_descriptor_set_layout && device && device->vk_device)
 	{
-		device->vk_device.destroyDescriptorSetLayout(vk_descriptor_set_layout, nullptr, instance->dispatch_loader_dynamic);
+		device->vk_device.destroyDescriptorSetLayout(vk_descriptor_set_layout);
 		vk_descriptor_set_layout = VK_NULL_HANDLE;
 	}
-
 }
 
-void  DescriptorPool::Init(std::vector<Binding> bindings, uint32_t count)
+void DescriptorPool::Init(std::vector<Binding> bindings, uint32_t count)
 {
 	std::vector<vk::DescriptorPoolSize> vk_pool_sizes;
 	vk_pool_sizes.reserve(bindings.size());
 	for (const auto& binding : bindings)
-		vk_pool_sizes.push_back(vk::DescriptorPoolSize().setType(binding.type).setDescriptorCount(count));
+	{
+		uint32_t total = static_cast<uint32_t>(binding.count * count);
+		vk_pool_sizes.push_back(vk::DescriptorPoolSize().setType(binding.type).setDescriptorCount(total));
+	}
 
 	vk_descriptor_pool_info = vk::DescriptorPoolCreateInfo()
 								  .setFlags(vk::DescriptorPoolCreateFlags())
@@ -152,8 +161,7 @@ void  DescriptorPool::Init(std::vector<Binding> bindings, uint32_t count)
 								  .setPPoolSizes(vk_pool_sizes.data());
 	try
 	{
-		vk_descriptor_pool =
-			device->vk_device.createDescriptorPool(vk_descriptor_pool_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_descriptor_pool = device->vk_device.createDescriptorPool(vk_descriptor_pool_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -161,16 +169,16 @@ void  DescriptorPool::Init(std::vector<Binding> bindings, uint32_t count)
 	}
 }
 
-void  DescriptorPool::Cleanup()
+void DescriptorPool::Cleanup()
 {
-	if (vk_descriptor_pool && device && device->vk_device && instance)
+	if (vk_descriptor_pool && device && device->vk_device)
 	{
-		device->vk_device.destroyDescriptorPool(vk_descriptor_pool, nullptr, instance->dispatch_loader_dynamic);
+		device->vk_device.destroyDescriptorPool(vk_descriptor_pool);
 		vk_descriptor_pool = VK_NULL_HANDLE;
 	}
 }
 
-void  PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts)
+void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts)
 {
 	vk_pipeline_layout_info = vk::PipelineLayoutCreateInfo()
 								  .setFlags(vk::PipelineLayoutCreateFlags())
@@ -184,8 +192,7 @@ void  PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_l
 
 	try
 	{
-		vk_pipeline_layout =
-			device->vk_device.createPipelineLayout(vk_pipeline_layout_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_pipeline_layout = device->vk_device.createPipelineLayout(vk_pipeline_layout_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -193,16 +200,16 @@ void  PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_l
 	}
 }
 
-void  PipelineLayout::Cleanup()
+void PipelineLayout::Cleanup()
 {
-	if (vk_pipeline_layout && device && device->vk_device && instance)
+	if (vk_pipeline_layout && device && device->vk_device)
 	{
-		device->vk_device.destroyPipelineLayout(vk_pipeline_layout, nullptr, instance->dispatch_loader_dynamic);
+		device->vk_device.destroyPipelineLayout(vk_pipeline_layout);
 		vk_pipeline_layout = VK_NULL_HANDLE;
 	}
 }
 
-void  RenderPass::Init(vk::Format format)
+void RenderPass::Init(vk::Format format)
 {
 	color_attachment = vk::AttachmentDescription()
 						   .setFlags(vk::AttachmentDescriptionFlags())
@@ -240,7 +247,7 @@ void  RenderPass::Init(vk::Format format)
 
 	try
 	{
-		vk_render_pass = device->vk_device.createRenderPass(vk_render_pass_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_render_pass = device->vk_device.createRenderPass(vk_render_pass_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -248,18 +255,18 @@ void  RenderPass::Init(vk::Format format)
 	}
 }
 
-void  RenderPass::Cleanup()
+void RenderPass::Cleanup()
 {
-	if (vk_render_pass && device && device->vk_device && instance)
+	if (vk_render_pass && device && device->vk_device)
 	{
-		device->vk_device.destroyRenderPass(vk_render_pass, nullptr, instance->dispatch_loader_dynamic);
+		device->vk_device.destroyRenderPass(vk_render_pass);
 		vk_render_pass = VK_NULL_HANDLE;
 	}
 }
 
-vk::DescriptorSet GetDescriptorSet(Device* device, DescriptorPool pool, DescriptorSetLayout layout)
+vk::DescriptorSet GetDescriptorSet(Device* device, DescriptorPool* pool, DescriptorSetLayout* layout)
 {
 	return VK_NULL_HANDLE;
 }
 
-}
+}	 // namespace nft::vulkan

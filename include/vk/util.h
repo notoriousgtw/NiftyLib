@@ -13,21 +13,21 @@ namespace nft::vulkan
 {
 
 	//=========================================================================
-	// PIPELINE STAGES (Integrated for performance)
+	// PIPELINE STAGES (Optimized for performance)
 	//=========================================================================
 
-	// Base pipeline stage
+	// Base pipeline stage - now uses device reference only
 	struct PipelineStage
 	{
-		PipelineStage(Device* device, Instance* instance): device(device), instance(instance) {};
-		Device*	  device;
-		Instance* instance;
+		PipelineStage(Device* device) : device(device) {}
+		
+		Device* device;
 	};
 
 	// Shader stage base
 	struct ShaderStage: public PipelineStage
 	{
-		ShaderStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		ShaderStage(Device* device) : PipelineStage(device) {}
 
 		vk::PipelineShaderStageCreateInfo vk_shader_stage_info;
 		std::unique_ptr<Shader>			  shader;
@@ -36,19 +36,19 @@ namespace nft::vulkan
 	// Vertex shader stage
 	struct VertexShaderStage: public ShaderStage
 	{
-		VertexShaderStage(Device* device, Instance* instance): ShaderStage(device, instance) {};
+		VertexShaderStage(Device* device) : ShaderStage(device) {}
 	};
 
 	// Fragment shader stage
 	struct FragmentShaderStage: public ShaderStage
 	{
-		FragmentShaderStage(Device* device, Instance* instance): ShaderStage(device, instance) {};
+		FragmentShaderStage(Device* device) : ShaderStage(device) {}
 	};
 
 	// Vertex input stage
 	struct VertexInputStage: public PipelineStage
 	{
-		VertexInputStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		VertexInputStage(Device* device) : PipelineStage(device) {}
 		void Init();
 
 		vk::PipelineVertexInputStateCreateInfo			 vk_vertex_input_info;
@@ -59,7 +59,7 @@ namespace nft::vulkan
 	// Input assembly stage
 	struct InputAssemblyStage: public PipelineStage
 	{
-		InputAssemblyStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		InputAssemblyStage(Device* device) : PipelineStage(device) {}
 		void Init();
 
 		vk::PipelineInputAssemblyStateCreateInfo vk_input_assembly_info;
@@ -68,7 +68,7 @@ namespace nft::vulkan
 	// Viewport stage
 	struct ViewportStage: public PipelineStage
 	{
-		ViewportStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		ViewportStage(Device* device) : PipelineStage(device) {}
 		void Init(vk::Extent2D extent);
 
 		vk::Viewport						viewport;
@@ -79,7 +79,7 @@ namespace nft::vulkan
 	// Rasterization stage
 	struct RasterizationStage: public PipelineStage
 	{
-		RasterizationStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		RasterizationStage(Device* device) : PipelineStage(device) {}
 		void Init();
 
 		vk::PipelineRasterizationStateCreateInfo vk_rasterization_info;
@@ -88,7 +88,7 @@ namespace nft::vulkan
 	// Multisample stage
 	struct MultisampleStage: public PipelineStage
 	{
-		MultisampleStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		MultisampleStage(Device* device) : PipelineStage(device) {}
 		void Init();
 
 		vk::PipelineMultisampleStateCreateInfo vk_multisample_info;
@@ -97,14 +97,14 @@ namespace nft::vulkan
 	// Color blend stage
 	struct ColorBlendStage: public PipelineStage
 	{
-		ColorBlendStage(Device* device, Instance* instance): PipelineStage(device, instance) {};
+		ColorBlendStage(Device* device) : PipelineStage(device) {}
 		void Init();
 
 		vk::PipelineColorBlendAttachmentState color_blend_attachment;
 		vk::PipelineColorBlendStateCreateInfo vk_color_blend_info;
 	};
 
-	// Pipeline layout
+	// DescriptorSetLayout - keeps instance pointer for surface context and potential debugging
 	struct DescriptorSetLayout
 	{
 		struct Binding
@@ -116,6 +116,7 @@ namespace nft::vulkan
 		};
 
 		DescriptorSetLayout(Surface* surface);
+		DescriptorSetLayout(Device* device);
 		void Init(std::vector<Binding> bindings);
 		void Cleanup();
 
@@ -123,17 +124,16 @@ namespace nft::vulkan
 		vk::DescriptorSetLayoutCreateInfo vk_descriptor_set_layout_info;
 
 	  private:
-		Surface*  surface;
-		Device*	  device;
-		Instance* instance;
+		Surface*  surface = nullptr;
+		Device*	  device = nullptr;
 	};
 
-	// Descriptor pool
+	// DescriptorPool - optimized structure
 	struct DescriptorPool
 	{
 		using Binding = DescriptorSetLayout::Binding;
 
-		DescriptorPool(Device* device, Instance* instance): device(device), instance(instance) {};
+		DescriptorPool(Device* device) : device(device) {}
 		void Init(std::vector<Binding> bindings, uint32_t count);
 		void Cleanup();
 
@@ -141,14 +141,13 @@ namespace nft::vulkan
 		vk::DescriptorPoolCreateInfo vk_descriptor_pool_info;
 
 	  private:
-		Device*	  device;
-		Instance* instance;
+		Device*	device;
 	};
 
-	// Pipeline layout
+	// PipelineLayout - optimized structure
 	struct PipelineLayout
 	{
-		PipelineLayout(Device* device, Instance* instance): device(device), instance(instance) {};
+		PipelineLayout(Device* device) : device(device) {}
 		void Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts);
 		void Cleanup();
 
@@ -156,14 +155,13 @@ namespace nft::vulkan
 		vk::PipelineLayoutCreateInfo vk_pipeline_layout_info;
 
 	  private:
-		Device*	  device;
-		Instance* instance;
+		Device*	device;
 	};
 
-	// Render pass
+	// RenderPass - optimized structure
 	struct RenderPass
 	{
-		RenderPass(Device* device, Instance* instance): device(device), instance(instance) {};
+		RenderPass(Device* device) : device(device) {}
 		void Init(vk::Format format);
 		void Cleanup();
 
@@ -174,8 +172,7 @@ namespace nft::vulkan
 		vk::SubpassDescription	  vk_subpass;
 
 	  private:
-		Device*	  device;
-		Instance* instance;
+		Device*	device;
 	};
 
 	// Returns a descriptor set

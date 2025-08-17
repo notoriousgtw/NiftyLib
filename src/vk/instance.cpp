@@ -42,12 +42,11 @@ Instance::~Instance()
 
 	// Cleanup debug messenger if in debug mode
 #ifdef _DEBUG
-		vk_instance.destroyDebugUtilsMessengerEXT(
-			vk_debug_messenger, nullptr, dispatch_loader_dynamic);
+		vk_instance.destroyDebugUtilsMessengerEXT(vk_debug_messenger);
 #endif
 
 	// Cleanup instance
-	vk_instance.destroy(nullptr, dispatch_loader_dynamic);
+	vk_instance.destroy();
 }
 
 //=============================================================================
@@ -56,8 +55,8 @@ Instance::~Instance()
 
 void Instance::Init()
 {
-	// Initialize dynamic loader
-	dispatch_loader_dynamic.init(vkGetInstanceProcAddr);
+	// Initialize global default dispatch loader
+	VULKAN_HPP_DEFAULT_DISPATCHER.init(vkGetInstanceProcAddr);
 	
 	app->GetLogger()->Debug("Creating Instance...", "VKInit");
 
@@ -116,7 +115,7 @@ void Instance::CheckSupported()
 {
 	// Check extension support
 	std::vector<vk::ExtensionProperties> supported_extensions =
-		vk::enumerateInstanceExtensionProperties(nullptr, dispatch_loader_dynamic);
+		vk::enumerateInstanceExtensionProperties();
 
 	app->GetLogger()->Debug("Supported Extensions:", "VKInit");
 	for (const vk::ExtensionProperties& extension : supported_extensions)
@@ -148,7 +147,7 @@ void Instance::CheckSupported()
 
 	// Check layer support
 	std::vector<vk::LayerProperties> supported_layers = 
-		vk::enumerateInstanceLayerProperties(dispatch_loader_dynamic);
+		vk::enumerateInstanceLayerProperties();
 
 	app->GetLogger()->Debug("Supported Layers:", "VKInit");
 	for (const vk::LayerProperties& layer : supported_layers)
@@ -192,15 +191,15 @@ void Instance::CreateInstance()
 	// Create the Vulkan instance
 	try
 	{
-		vk_instance = vk::createInstance(vk_instance_info, nullptr, dispatch_loader_dynamic);
+		vk_instance = vk::createInstance(vk_instance_info);
 	}
 	catch (const vk::SystemError& err)
 	{
 		NFT_ERROR(VKFatal, std::format("Failed To Create Instance:\n{}", err.what()));
 	}
 	
-	// Update dispatch loader with instance
-	dispatch_loader_dynamic = vk::detail::DispatchLoaderDynamic(vk_instance, vkGetInstanceProcAddr);
+	// Update global default dispatch loader with instance
+	VULKAN_HPP_DEFAULT_DISPATCHER.init(vk_instance, vkGetInstanceProcAddr);
 
 	// Setup debug messenger in debug builds
 #ifdef _DEBUG
@@ -261,8 +260,7 @@ void Instance::SetupDebugMessenger()
 	// Create debug messenger
 	try
 	{
-		vk_debug_messenger = vk_instance.createDebugUtilsMessengerEXT(
-			vk_debug_messenger_info, nullptr, dispatch_loader_dynamic);
+		vk_debug_messenger = vk_instance.createDebugUtilsMessengerEXT(vk_debug_messenger_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -270,4 +268,4 @@ void Instance::SetupDebugMessenger()
 	}
 }
 
-} // namespace nft::vulkan
+} // namespace nft::vulkan} // namespace nft::vulkan} // namespace nft::vulkan} // namespace nft::vulkan

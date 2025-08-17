@@ -33,18 +33,18 @@ Surface::Surface(Instance* instance, Device* device, GLFWwindow* window):
 	vk_pipeline(VK_NULL_HANDLE),
 	vk_command_pool(VK_NULL_HANDLE),
 	vk_command_buffer(VK_NULL_HANDLE),
-	vertex_input_stage(device, instance),
-	input_assembly_stage(device, instance),
-	viewport_stage(device, instance),
-	rasterization_stage(device, instance),
-	multisample_stage(device, instance),
-	color_blend_stage(device, instance),
-	frame_set_layout(this),
-	mesh_set_layout(this),
-	frame_descriptor_pool(device, instance),
-	mesh_descriptor_pool(device, instance),
-	pipeline_layout(device, instance),
-	render_pass(device, instance),
+	vertex_input_stage(device),
+	input_assembly_stage(device),
+	viewport_stage(device),
+	rasterization_stage(device),
+	multisample_stage(device),
+	color_blend_stage(device),
+	frame_set_layout(this),   // Keep instance pointer for surface context and debugging
+	mesh_set_layout(this),    // Keep instance pointer for surface context and debugging
+	frame_descriptor_pool(device),
+	mesh_descriptor_pool(device),
+	pipeline_layout(device),
+	render_pass(device),
 	clear_color(vk::ClearColorValue(std::array<float, 4> { 0.2f, 0.2f, 0.2f, 1.0f })),
 	is_cleaned_up(false)
 {
@@ -69,7 +69,7 @@ Surface::~Surface()
 	// Finally cleanup the surface itself (must be done after all surface-dependent objects)
 	if (vk_surface && instance && instance->vk_instance)
 	{
-		instance->vk_instance.destroySurfaceKHR(vk_surface, nullptr, instance->dispatch_loader_dynamic);
+		instance->vk_instance.destroySurfaceKHR(vk_surface);
 		vk_surface = VK_NULL_HANDLE;
 		if (app && app->GetLogger())
 			app->GetLogger()->Debug("Surface destroyed successfully", "VKShutdown");
@@ -106,17 +106,17 @@ void Surface::InitSwapchain()
 
 	// Query swapchain support details
 	support_details.capabilities =
-		device->vk_physical_device.getSurfaceCapabilitiesKHR(vk_surface, instance->dispatch_loader_dynamic);
-	support_details.formats = device->vk_physical_device.getSurfaceFormatsKHR(vk_surface, instance->dispatch_loader_dynamic);
+		device->vk_physical_device.getSurfaceCapabilitiesKHR(vk_surface);
+	support_details.formats = device->vk_physical_device.getSurfaceFormatsKHR(vk_surface);
 	support_details.present_modes =
-		device->vk_physical_device.getSurfacePresentModesKHR(vk_surface, instance->dispatch_loader_dynamic);
+		device->vk_physical_device.getSurfacePresentModesKHR(vk_surface);
 
 	LogSupportDetails();
 	CreateSwapchain();
 
 	// Create synchronization objects using Device wrapper methods
 	// app->GetLogger()->Debug("Creating Synchronization Objects...", "VKInit");
-	for (auto& frame : frames)
+for (auto& frame : frames)
 	{
 		frame.in_flight_fence			= device->CreateFence(true);
 		frame.image_available_semaphore = device->CreateSemaphore();
@@ -181,7 +181,7 @@ void Surface::CreateSwapchain()
 	// Create the swapchain
 	try
 	{
-		vk_swapchain = device->vk_device.createSwapchainKHR(vk_swapchain_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_swapchain = device->vk_device.createSwapchainKHR(vk_swapchain_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -189,7 +189,7 @@ void Surface::CreateSwapchain()
 	}
 
 	// Get swapchain images and create image views
-	std::vector<vk::Image> image_vec = device->vk_device.getSwapchainImagesKHR(vk_swapchain, instance->dispatch_loader_dynamic);
+	std::vector<vk::Image> image_vec = device->vk_device.getSwapchainImagesKHR(vk_swapchain);
 	this->frames.resize(image_vec.size());
 	max_frames_in_flight = image_vec.size();
 
@@ -212,7 +212,7 @@ void Surface::CreateSwapchain()
 		try
 		{
 			frame.vk_image_view =
-				device->vk_device.createImageView(frame.vk_image_view_info, nullptr, instance->dispatch_loader_dynamic);
+				device->vk_device.createImageView(frame.vk_image_view_info);
 		}
 		catch (const vk::SystemError& err)
 		{
@@ -237,7 +237,7 @@ void Surface::RecreateSwapchain()
 		glfwWaitEvents();
 	}
 
-	device->vk_device.waitIdle(instance->dispatch_loader_dynamic);
+	device->vk_device.waitIdle();
 	// Cleanup old swapchain resources
 	CleanupSwapchain();
 	// Recreate swapchain and related resources
@@ -254,6 +254,7 @@ void Surface::RecreateSwapchain()
 
 void Surface::CreatePipeline()
 {
+
 	app->GetLogger()->Debug("Creating Pipeline...", "VKInit");
 
 	// Initialize pipeline stages for better performance with inline initialization
@@ -265,7 +266,7 @@ void Surface::CreatePipeline()
 	shader_stages.reserve(2);	 // Performance: reserve space for vertex and fragment shaders
 
 	// Add vertex shader
-	shader_stages.emplace_back(device, instance);
+	shader_stages.emplace_back(device);
 	shader_stages.back().shader =
 		std::make_unique<Shader>(device, Shader::ShaderCode { (uint32_t*)simple_shader_vert, simple_shader_vert_len });
 	shader_stages.back().vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
@@ -278,7 +279,7 @@ void Surface::CreatePipeline()
 	rasterization_stage.Init();
 
 	// Add fragment shader
-	shader_stages.emplace_back(device, instance);
+	shader_stages.emplace_back(device);
 	shader_stages.back().shader =
 		std::make_unique<Shader>(device, Shader::ShaderCode { (uint32_t*)simple_shader_frag, simple_shader_frag_len });
 	shader_stages.back().vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
@@ -309,6 +310,16 @@ void Surface::CreatePipeline()
 	for (auto& frame : frames)
 		frame.AllocateDescriptorResources();
 
+	app->GetLogger()->Debug(std::format(
+    "Allocating {} texture descriptor sets (pool maxSets={}, typeCount={})",
+    scene->textures.size(),
+    mesh_descriptor_pool.vk_descriptor_pool_info.maxSets,
+    mesh_descriptor_pool.vk_descriptor_pool_info.poolSizeCount),
+    "VKInit");
+
+	for (auto& tex : scene->textures)
+		tex.CreateDescriptorSet(mesh_set_layout.vk_descriptor_set_layout, mesh_descriptor_pool.vk_descriptor_pool);
+
 	pipeline_layout.Init(vk_descriptor_set_layouts);
 	render_pass.Init(format.format);
 
@@ -336,7 +347,7 @@ void Surface::CreatePipeline()
 	try
 	{
 		vk_pipeline =
-			device->vk_device.createGraphicsPipeline(nullptr, vk_pipeline_info, nullptr, instance->dispatch_loader_dynamic).value;
+			device->vk_device.createGraphicsPipeline(nullptr, vk_pipeline_info).value;
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -369,7 +380,7 @@ void Surface::CreateFrameBuffers()
 		try
 		{
 			frame.vk_frame_buffer =
-				device->vk_device.createFramebuffer(frame.vk_frame_buffer_info, nullptr, instance->dispatch_loader_dynamic);
+				device->vk_device.createFramebuffer(frame.vk_frame_buffer_info);
 		}
 		catch (const vk::SystemError& err)
 		{
@@ -387,7 +398,7 @@ void Surface::CreateCommandPool()
 
 	try
 	{
-		vk_command_pool = device->vk_device.createCommandPool(vk_command_pool_info, nullptr, instance->dispatch_loader_dynamic);
+		vk_command_pool = device->vk_device.createCommandPool(vk_command_pool_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -400,8 +411,7 @@ void Surface::CreateCommandPool()
 		vk_command_buffer = device->vk_device.allocateCommandBuffers(vk::CommandBufferAllocateInfo()
 																		 .setCommandPool(vk_command_pool)
 																		 .setLevel(vk::CommandBufferLevel::ePrimary)
-																		 .setCommandBufferCount(1),
-																	 instance->dispatch_loader_dynamic)[0];
+																		 .setCommandBufferCount(1))[0];
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -417,8 +427,7 @@ void Surface::CreateFrameCommandBuffers()
 		frame.vk_command_buffer = device->vk_device.allocateCommandBuffers(vk::CommandBufferAllocateInfo()
 																			   .setCommandPool(vk_command_pool)
 																			   .setLevel(vk::CommandBufferLevel::ePrimary)
-																			   .setCommandBufferCount(1),
-																		   instance->dispatch_loader_dynamic)[0];
+																			   .setCommandBufferCount(1))[0];
 	}
 }
 
@@ -437,12 +446,12 @@ void Surface::PrepareScene(vk::CommandBuffer command_buffer)
 
 	vk::Buffer	 vertex_buffers[] = { scene->GetGeometryBatcher()->GetVertexBuffer()->vk_buffer };
 	VkDeviceSize offsets[]		  = { 0 };	  // Start from the beginning of the buffer
-	command_buffer.bindVertexBuffers(0, 1, vertex_buffers, offsets, instance->dispatch_loader_dynamic);
+	command_buffer.bindVertexBuffers(0, 1, vertex_buffers, offsets);
 }
 
 void Surface::Render()
 {
-	device->vk_device.waitForFences(frames[frame_index].in_flight_fence, VK_TRUE, UINT64_MAX, instance->dispatch_loader_dynamic);
+	device->vk_device.waitForFences(frames[frame_index].in_flight_fence, VK_TRUE, UINT64_MAX);
 
 	uint32_t image_index;
 	try
@@ -453,8 +462,7 @@ void Surface::Render()
 													   .setTimeout(UINT64_MAX)
 													   .setSemaphore(frames[frame_index].image_available_semaphore)
 													   .setFence(nullptr)
-													   .setDeviceMask(1),
-												   instance->dispatch_loader_dynamic);
+													   .setDeviceMask(1));
 		image_index = aquire.value;
 	}
 	catch (vk::OutOfDateKHRError)
@@ -463,10 +471,10 @@ void Surface::Render()
 		return;
 	}
 
-	device->vk_device.resetFences(frames[frame_index].in_flight_fence, instance->dispatch_loader_dynamic);
+	device->vk_device.resetFences(frames[frame_index].in_flight_fence);
 
 	vk::CommandBuffer command_buffer = frames[frame_index].vk_command_buffer;
-	command_buffer.reset(vk::CommandBufferResetFlags(), instance->dispatch_loader_dynamic);
+	command_buffer.reset(vk::CommandBufferResetFlags());
 
 	frames[frame_index].Prepare();
 	RecordDrawCommands(frames[frame_index], image_index);
@@ -484,7 +492,7 @@ void Surface::Render()
 
 	try
 	{
-		device->vk_graphics_queue.submit(submit_info, frames[frame_index].in_flight_fence, instance->dispatch_loader_dynamic);
+		device->vk_graphics_queue.submit(submit_info, frames[frame_index].in_flight_fence);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -501,7 +509,7 @@ void Surface::Render()
 	vk::Result present_result;
 	try
 	{
-		present_result = device->GetPresentQueue().presentKHR(present_info, instance->dispatch_loader_dynamic);
+		present_result = device->GetPresentQueue().presentKHR(present_info);
 	}
 	catch (vk::OutOfDateKHRError)
 	{
@@ -523,7 +531,7 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 	// Record commands for each frame
 	auto					   command_buffer = frame.vk_command_buffer;
 	vk::CommandBufferBeginInfo begin_info	  = vk::CommandBufferBeginInfo();
-	command_buffer.begin(begin_info, instance->dispatch_loader_dynamic);
+	command_buffer.begin(begin_info);
 
 	vk::RenderPassBeginInfo render_pass_begin_info = vk::RenderPassBeginInfo()
 														 .setRenderPass(render_pass.vk_render_pass)
@@ -531,16 +539,15 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 														 .setRenderArea(vk::Rect2D().setOffset({ 0, 0 }).setExtent(extent))
 														 .setClearValueCount(1)
 														 .setPClearValues(&clear_color);
-	command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline, instance->dispatch_loader_dynamic);
+	command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
 	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
 									  pipeline_layout.vk_pipeline_layout,
 									  0,
 									  { frame.vk_descriptor_set },
-									  nullptr,
-									  instance->dispatch_loader_dynamic);
+									  nullptr);
 
-	command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_pipeline, instance->dispatch_loader_dynamic);
+	command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_pipeline);
 
 	PrepareScene(command_buffer);
 
@@ -574,8 +581,9 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 				//									instance_id),
 				//						"VKRender");
 
+				scene->textures[scene->objects[instance_id].texture_index].Use(command_buffer, vk::PipelineBindPoint::eGraphics, pipeline_layout.vk_pipeline_layout, 1);
 				// Draw single instance
-				command_buffer.draw(vertex_count, 1, first_vertex, instance_id, instance->dispatch_loader_dynamic);
+				command_buffer.draw(vertex_count, 1, first_vertex, instance_id);
 			}
 		}
 	}
@@ -617,8 +625,8 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 	//	}
 	//}
 
-	command_buffer.endRenderPass(instance->dispatch_loader_dynamic);
-	command_buffer.end(instance->dispatch_loader_dynamic);
+	command_buffer.endRenderPass();
+	command_buffer.end();
 }
 
 //=============================================================================
@@ -630,7 +638,7 @@ void Surface::CleanupSwapchain()
 	// Cleanup swapchain resources
 	if (vk_swapchain && device && instance)
 	{
-		device->vk_device.destroySwapchainKHR(vk_swapchain, nullptr, instance->dispatch_loader_dynamic);
+		device->vk_device.destroySwapchainKHR(vk_swapchain);
 		vk_swapchain = VK_NULL_HANDLE;
 		if (app && app->GetLogger())
 			app->GetLogger()->Debug("Swapchain destroyed successfully", "VKShutdown");
@@ -639,23 +647,23 @@ void Surface::CleanupSwapchain()
 	for (auto& frame : frames)
 	{
 		if (frame.vk_image_view)
-			device->vk_device.destroyImageView(frame.vk_image_view, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroyImageView(frame.vk_image_view);
 		if (frame.vk_frame_buffer)
-			device->vk_device.destroyFramebuffer(frame.vk_frame_buffer, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroyFramebuffer(frame.vk_frame_buffer);
 		if (frame.in_flight_fence)
-			device->vk_device.destroyFence(frame.in_flight_fence, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroyFence(frame.in_flight_fence);
 		if (frame.image_available_semaphore)
-			device->vk_device.destroySemaphore(frame.image_available_semaphore, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroySemaphore(frame.image_available_semaphore);
 		if (frame.render_finished_semaphore)
-			device->vk_device.destroySemaphore(frame.render_finished_semaphore, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroySemaphore(frame.render_finished_semaphore);
 		if (frame.camera_data_buffer)
 		{
-			device->vk_device.unmapMemory(frame.camera_data_buffer->vk_memory, instance->dispatch_loader_dynamic);
+			device->vk_device.unmapMemory(frame.camera_data_buffer->vk_memory);
 			device->buffer_manager->DestroyBuffer(frame.camera_data_buffer);
 		}
 		if (frame.object_transform_buffer)
 		{
-			device->vk_device.unmapMemory(frame.object_transform_buffer->vk_memory, instance->dispatch_loader_dynamic);
+			device->vk_device.unmapMemory(frame.object_transform_buffer->vk_memory);
 			device->buffer_manager->DestroyBuffer(frame.object_transform_buffer);
 		}
 		frame.vk_image_view = VK_NULL_HANDLE;
@@ -672,19 +680,19 @@ void Surface::Cleanup()
 	// Same cleanup logic as before, but can be called explicitly
 	if (device && device->vk_device)
 	{
-		device->vk_device.waitIdle(instance->dispatch_loader_dynamic);
+		device->vk_device.waitIdle();
 
 		app->GetLogger()->Debug("Cleaning up Surface Vulkan objects...", "VKShutdown");
 
 		if (vk_command_pool)
 		{
-			device->vk_device.destroyCommandPool(vk_command_pool, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroyCommandPool(vk_command_pool);
 			vk_command_pool = VK_NULL_HANDLE;
 		}
 
 		if (vk_pipeline)
 		{
-			device->vk_device.destroyPipeline(vk_pipeline, nullptr, instance->dispatch_loader_dynamic);
+			device->vk_device.destroyPipeline(vk_pipeline);
 			vk_pipeline = VK_NULL_HANDLE;
 		}
 
@@ -749,7 +757,7 @@ void log_transform_bits(Logger* logger, Logger::DisplayFlags log_flags, const vk
 		supported_transforms.push_back("Rotate 90 - Rotates the surface 90 degrees clockwise.");
 	if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eRotate180)
 		supported_transforms.push_back("Rotate 180 - Rotates the surface 180 degrees.");
-	if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eRotate270)
+ if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eRotate270)
 		supported_transforms.push_back("Rotate 270 - Rotates the surface 270 degrees clockwise.");
 	if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eHorizontalMirror)
 		supported_transforms.push_back("Horizontal Mirror - Flips the surface horizontally.");
@@ -924,8 +932,7 @@ void Surface::Frame::MakeDescriptorResources()
 	camera_data_ptr	   = device->vk_device.mapMemory(camera_data_buffer->vk_memory,
 													 0,
 													 camera_data_buffer->vk_memory_info.allocationSize,
-													 vk::MemoryMapFlags(),
-													 device->GetInstance()->GetDispatchLoader());
+													 vk::MemoryMapFlags());
 
 	size_t buffer_size = sizeof(glm::mat4) * scene->objects.size();
 	size_t aligned_size = ((buffer_size + 15) / 16) * 16;	// Align to 256 bytes
@@ -937,8 +944,7 @@ void Surface::Frame::MakeDescriptorResources()
 	object_transform_ptr	= device->vk_device.mapMemory(object_transform_buffer->vk_memory,
 														  0,
 														  object_transform_buffer->vk_memory_info.allocationSize,
-														  vk::MemoryMapFlags(),
-														  device->GetInstance()->GetDispatchLoader());
+														  vk::MemoryMapFlags());
 
 	// CRITICAL FIX: Clear the GPU memory to zero
 	std::memset(object_transform_ptr, 0, object_transform_buffer->vk_memory_info.allocationSize);
@@ -971,7 +977,7 @@ void Surface::Frame::AllocateDescriptorResources()
 												   .setPSetLayouts(&surface->frame_set_layout.vk_descriptor_set_layout);
 	try
 	{
-		vk_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info, surface->instance->dispatch_loader_dynamic)[0];
+		vk_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info)[0];
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -990,9 +996,9 @@ void Surface::Frame::Prepare()
 
 
 
-	glm::vec3 eye	 = { 1.0f, 0.0f, 2.0f };
+	glm::vec3 eye	 = { 0.0f, 0.0f, -1.0f };
 	glm::vec3 center = { 0.0f, 0.0f, 0.0f };
-	glm::vec3 up	 = { 0.0f, 1.0f, 0.0f };
+	glm::vec3 up	 = { 0.0f, -1.0f, 0.0f };
 	camera_data.view = glm::lookAt(eye, center, up);
 
 	camera_data.proj = glm::perspective(glm::radians(45.0f),
@@ -1091,7 +1097,7 @@ void Surface::Frame::Prepare()
 									.setPTexelBufferView(nullptr)
 									.setPImageInfo(nullptr));
 	device->vk_device.updateDescriptorSets(
-		descriptor_writes.size(), descriptor_writes.data(), 0, nullptr, surface->instance->dispatch_loader_dynamic);
+		descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 }
 
-}	 // namespace nft::vulkan
+}	 // namespace nft::vulkan}	 // namespace nft::vulkan

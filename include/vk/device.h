@@ -137,6 +137,8 @@ class Device
 	friend class BufferManager;
 	friend class Surface;	 // Needs access to vk_device, vk_physical_device, and queues
 	friend class Scene;
+	friend class Image;
+	friend class Texture;
 	friend struct ShaderStage;
 	friend struct VertexShaderStage;
 	friend struct FragmentShaderStage;

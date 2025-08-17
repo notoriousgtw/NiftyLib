@@ -56,7 +56,7 @@ class GeometryBatcher
 
 	void AddGeometry(const IMesh* mesh);
 	// void Batch();
-	void	CreateBuffer(vk::Queue queue, vk::CommandBuffer command_buffer);
+	void	CreateBuffer(vk::CommandBuffer command_buffer, vk::Queue queue);
 	Buffer* GetVertexBuffer() const { return vertex_buffer; }
 
   private:

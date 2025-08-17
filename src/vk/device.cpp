@@ -40,6 +40,9 @@ Device::Device(Instance* instance) : instance(instance)
     CreateDevice();
     GetQueues();
     
+    // Initialize dispatch loader with device after device creation
+    instance->InitDispatchLoaderWithDevice(vk_device);
+
     // Initialize buffer manager after device is created
     buffer_manager = std::make_unique<BufferManager>(this);
 }
@@ -51,7 +54,7 @@ Device::~Device()
     // Clean up buffer manager before destroying device
     buffer_manager.reset();
     
-    vk_device.destroy(nullptr, instance->GetDispatchLoader());
+    vk_device.destroy();
 }
 
 //=============================================================================
@@ -68,14 +71,14 @@ void Device::ChoosePhysicalDevice()
     app->GetLogger()->Debug("Choosing Physical Device...", "VKInit");
     
     // Enumerate available physical devices
-    available_devices = instance->GetVkInstance().enumeratePhysicalDevices(instance->GetDispatchLoader());
+    available_devices = instance->GetVkInstance().enumeratePhysicalDevices();
 
     app->GetLogger()->Debug("Found Physical Devices:", "VKInit");
     
     // Log information about each available device
     for (const auto& physical_device : available_devices)
     {
-        device_properties = physical_device.getProperties(instance->GetDispatchLoader());
+        device_properties = physical_device.getProperties();
 
         // Convert device type to human-readable string
         std::string device_type;
@@ -121,7 +124,7 @@ void Device::FindSuitableDevice()
 
         // Check extension support
         app->GetLogger()->Debug(std::format("{} Supports Extensions:", device_properties.deviceName.data()), "VKInit");
-        for (auto& extension : physical_device.enumerateDeviceExtensionProperties(nullptr, instance->GetDispatchLoader()))
+        for (auto& extension : physical_device.enumerateDeviceExtensionProperties())
         {
             app->GetLogger()->Debug(extension.extensionName.data(), 
                                     "", 
@@ -132,7 +135,7 @@ void Device::FindSuitableDevice()
 
         // Check layer support
         app->GetLogger()->Debug(std::format("{} Supports Layers:", device_properties.deviceName.data()), "VKInit");
-        for (auto& layer : physical_device.enumerateDeviceLayerProperties(instance->GetDispatchLoader()))
+        for (auto& layer : physical_device.enumerateDeviceLayerProperties())
         {
             app->GetLogger()->Debug(layer.layerName.data(), 
                                     "", 
@@ -163,7 +166,7 @@ void Device::FindQueueFamilies()
 
     // Get available queue families
     std::vector<vk::QueueFamilyProperties> queue_families =
-        vk_physical_device.getQueueFamilyProperties(instance->GetDispatchLoader());
+        vk_physical_device.getQueueFamilyProperties();
 
     // Search for required queue families
     int i = 0;
@@ -254,7 +257,7 @@ void Device::CreateDevice()
     // Create the logical device
     try
     {
-        vk_device = vk_physical_device.createDevice(vk_device_info, nullptr, instance->GetDispatchLoader());
+        vk_device = vk_physical_device.createDevice(vk_device_info);
     }
     catch (const vk::SystemError& err)
     {
@@ -267,10 +270,8 @@ void Device::CreateDevice()
 void Device::GetQueues()
 {
     // Get handles to the created queues
-    vk_graphics_queue = vk_device.getQueue(
-        queue_family_indices.graphics_family.value(), 0, instance->GetDispatchLoader());
-    vk_present_queue = vk_device.getQueue(
-        queue_family_indices.present_family.value(), 0, instance->GetDispatchLoader());
+    vk_graphics_queue = vk_device.getQueue(queue_family_indices.graphics_family.value(), 0);
+    vk_present_queue = vk_device.getQueue(queue_family_indices.present_family.value(), 0);
 }
 
 //=============================================================================
@@ -289,7 +290,7 @@ vk::Semaphore Device::CreateSemaphore() const
     
     try
     {
-        vk::Semaphore semaphore = vk_device.createSemaphore(semaphore_info, nullptr, instance->GetDispatchLoader());
+        vk::Semaphore semaphore = vk_device.createSemaphore(semaphore_info);
         
         if (app && app->GetLogger())
         {
@@ -325,7 +326,7 @@ vk::Fence Device::CreateFence(const vk::FenceCreateInfo& fence_info) const
 
     try
     {
-        vk::Fence fence = vk_device.createFence(fence_info, nullptr, instance->GetDispatchLoader());
+        vk::Fence fence = vk_device.createFence(fence_info);
         
         if (app && app->GetLogger())
         {
@@ -390,7 +391,7 @@ bool Device::CheckPlatformPresentationSupport(uint32_t queue_family_index) const
         
         // Fallback: assume presentation is supported if we have graphics capability
         std::vector<vk::QueueFamilyProperties> queue_families =
-            vk_physical_device.getQueueFamilyProperties(instance->GetDispatchLoader());
+            vk_physical_device.getQueueFamilyProperties();
         
         if (queue_family_index < queue_families.size())
         {
@@ -405,7 +406,7 @@ bool Device::CheckPlatformPresentationSupport(uint32_t queue_family_index) const
 #elif defined(__APPLE__)
         // macOS platform - typically supported if graphics is supported
         std::vector<vk::QueueFamilyProperties> queue_families =
-            vk_physical_device.getQueueFamilyProperties(instance->GetDispatchLoader());
+            vk_physical_device.getQueueFamilyProperties();
         
         if (queue_family_index < queue_families.size())
         {

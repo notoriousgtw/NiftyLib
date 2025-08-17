@@ -39,8 +39,7 @@ Shader::Shader(Device* device, ShaderCode code) : device(device), code(code)
 	// Create the shader module
 	try
 	{
-		vk_shader_module = device->GetDevice().createShaderModule(
-			vk_shader_module_info, nullptr, instance->GetDispatchLoader());
+		vk_shader_module = device->GetDevice().createShaderModule(vk_shader_module_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -51,7 +50,7 @@ Shader::Shader(Device* device, ShaderCode code) : device(device), code(code)
 Shader::~Shader()
 {
 	// Clean up the shader module
-	device->GetDevice().destroyShaderModule(vk_shader_module, nullptr, instance->GetDispatchLoader());
+	device->GetDevice().destroyShaderModule(vk_shader_module);
 }
 
-}	 // namespace nft::vulkan
+} // namespace nft::vulkan

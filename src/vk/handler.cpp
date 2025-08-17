@@ -95,7 +95,7 @@ void VulkanHandler::AddSurface(GLFWwindow* window)
 
 void VulkanHandler::ShutDown()
 {
-	device->GetDevice().waitIdle(instance->GetDispatchLoader());	   // Ensure all operations are complete before cleanup
+	device->GetDevice().waitIdle();	   // Ensure all operations are complete before cleanup
 
     app->GetLogger()->Debug("Cleaning Up Vulkan Resources...", "VKShutdown");
 

@@ -4,29 +4,54 @@
 
 namespace nft::vulkan
 {
-Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer): device(device)
+Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer):
+	device(device)
 {
 	if (!device)
 		NFT_ERROR(VKFatal, "Device Is Null!");
 	geometry_batcher = std::make_unique<GeometryBatcher>(device);
 
 	// Create a grid of squares with proper Z positioning
-	for (float x = -0.6f; x <= 0.6f; x += 1.2f)
-	{
-		for (float y = 0.0f; y <= 0.6f; y += 0.6f)
-		{
-			ObjectData object;
-			// Position objects at Z=0 instead of Z=1 to avoid camera clipping
-			object.transform = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, 0.0f));
-			object.mesh		 = &triangle_mesh;
-			objects.push_back(object);
-		}
-	}
+	//for (float x = -0.6f; x <= 0.6f; x += 1.2f)
+	//{
+	//	for (float y = 0.0f; y <= 0.6f; y += 0.6f)
+	//	{
+	//		ObjectData object;
+	//		// Position objects at Z=0 instead of Z=1 to avoid camera clipping
+	//		object.transform = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, 0.0f));
+	//		object.mesh		 = &triangle_mesh;
+	//		object.texture_index = 0;	 // Use the first texture
+	//		objects.push_back(object);
+	//	}
+	//}
+	
+	ObjectData square_object;
+	square_object.mesh = &square_mesh;
+	square_object.transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	square_object.texture_index = 0;	// Use the first texture
+	objects.push_back(square_object);
 
-	geometry_batcher->AddGeometry(&triangle_mesh);
+	geometry_batcher->AddGeometry(&square_mesh);
+	textures.push_back(Texture(device));
+	textures[0].SetupCommands(main_command_buffer, device->vk_graphics_queue);
+	textures[0].LoadFile("./assets/textures/chancy.png");
+	textures[0].CreateSampler(vk::SamplerCreateInfo()
+								  .setMagFilter(vk::Filter::eLinear)
+								  .setMinFilter(vk::Filter::eLinear)
+								  .setAddressModeU(vk::SamplerAddressMode::eRepeat)
+								  .setAddressModeV(vk::SamplerAddressMode::eRepeat)
+								  .setAddressModeW(vk::SamplerAddressMode::eRepeat)
+								  .setAnisotropyEnable(VK_TRUE)
+								  .setMaxAnisotropy(16.0f)
+								  .setBorderColor(vk::BorderColor::eIntOpaqueBlack)
+								  .setUnnormalizedCoordinates(VK_FALSE)
+								  .setCompareEnable(VK_FALSE)
+								  .setCompareOp(vk::CompareOp::eAlways)
+								  .setMipmapMode(vk::SamplerMipmapMode::eLinear)
+								  .setMipLodBias(0.0f));
 
-	//geometry_batcher->Batch();
-	geometry_batcher->CreateBuffer(device->vk_graphics_queue, main_command_buffer);
+	// geometry_batcher->Batch();
+	geometry_batcher->CreateBuffer(main_command_buffer, device->vk_graphics_queue);
 }
 
 vk::VertexInputBindingDescription GetVertexInputBindingDescription()

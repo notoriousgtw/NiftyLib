@@ -36,12 +36,10 @@ public:
     // PUBLIC METHODS
     //=========================================================================
     // Initialize dispatch loader with device (called after device creation)
-#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
     void InitDispatchLoaderWithDevice(const vk::Device& device) 
     {
-        dispatch_loader_dynamic.init(vk_instance, vkGetInstanceProcAddr, device);
+        VULKAN_HPP_DEFAULT_DISPATCHER.init(vk_instance, vkGetInstanceProcAddr, device);
     }
-#endif
 
     //=========================================================================
     // STATIC CALLBACKS
@@ -58,11 +56,6 @@ public:
     App* GetApp() const { return app; }
     const vk::Instance& GetVkInstance() const { return vk_instance; }
     const vk::DebugUtilsMessengerEXT& GetDebugMessenger() const { return vk_debug_messenger; }
-    
-    // Dynamic loader access (needed for Vulkan operations)
-#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
-    const vk::detail::DispatchLoaderDynamic& GetDispatchLoader() const { return dispatch_loader_dynamic; }
-#endif
 
     // Extension and layer information
     const std::vector<const char*>& GetExtensions() const { return extensions; }
@@ -81,12 +74,9 @@ private:
     vk::DebugUtilsMessengerEXT vk_debug_messenger = nullptr;
 
     // Dynamic loader support
-#if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
-    vk::detail::DispatchLoaderDynamic dispatch_loader_dynamic;
     static vk::detail::DynamicLoader  dynamic_loader;
     PFN_vkGetInstanceProcAddr         vkGetInstanceProcAddr = 
         dynamic_loader.getProcAddress<PFN_vkGetInstanceProcAddr>("vkGetInstanceProcAddr");
-#endif
 
     // Instance creation data
     vk::ApplicationInfo                  vk_app_info = nullptr;
@@ -98,8 +88,8 @@ private:
     //=========================================================================
     // FRIEND CLASSES (Allow controlled access to private members)
     //=========================================================================
-    friend class Device;   // Needs access to vk_instance and dispatch_loader_dynamic
-    friend class Surface;  // Needs access to vk_instance and dispatch_loader_dynamic
+    friend class Device;   // Needs access to vk_instance
+    friend class Surface;  // Needs access to vk_instance
 	friend struct ShaderStage;
 	friend struct VertexShaderStage;
 	friend struct FragmentShaderStage;

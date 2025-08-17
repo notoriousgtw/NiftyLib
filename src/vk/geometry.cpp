@@ -45,7 +45,7 @@ void GeometryBatcher::AddGeometry(const IMesh* mesh)
 //	}
 // }
 
-void GeometryBatcher::CreateBuffer(vk::Queue queue, vk::CommandBuffer command_buffer)
+void GeometryBatcher::CreateBuffer(vk::CommandBuffer command_buffer, vk::Queue queue)
 {
 	size_t	memory_size	   = vertex_data.size() * sizeof(float);
 	Buffer* staging_buffer = device->GetBufferManager()->CreateBuffer(memory_size,
@@ -56,17 +56,16 @@ void GeometryBatcher::CreateBuffer(vk::Queue queue, vk::CommandBuffer command_bu
 	void* memory_ptr = device->GetDevice().mapMemory(staging_buffer->vk_memory,
 													 0,
 													 staging_buffer->vk_memory_info.allocationSize,
-													 vk::MemoryMapFlags(),
-													 device->GetInstance()->GetDispatchLoader());
+													 vk::MemoryMapFlags());
 	memcpy(memory_ptr, vertex_data.data(), memory_size);
-	device->GetDevice().unmapMemory(staging_buffer->vk_memory, device->GetInstance()->GetDispatchLoader());
+	device->GetDevice().unmapMemory(staging_buffer->vk_memory);
 
 	vertex_buffer =
 		device->GetBufferManager()->CreateBuffer(memory_size,
 												 vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
 												 vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-	device->GetBufferManager()->CopyBuffer(staging_buffer, vertex_buffer, memory_size, queue, command_buffer);
+	device->GetBufferManager()->CopyBuffer(staging_buffer, vertex_buffer, memory_size, command_buffer, queue);
 	device->GetBufferManager()->DestroyBuffer(staging_buffer);
 }
 

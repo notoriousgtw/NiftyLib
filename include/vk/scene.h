@@ -80,43 +80,35 @@ class Scene
 	SimpleMesh square_mesh { {
 		// Triangle 1 (top-left, bottom-left, bottom-right)
 		// V1 (top-left)
-		-0.2f,
-		0.2f,	 // Position - Made 4x larger
-		1.0f,
-		0.0f,
-		0.0f,	 // Red color
+		-0.5f, 0.5f, 0.0f,    // Position (3 floats: x, y, z)
+		1.0f, 0.0f, 0.0f, 1.0f,  // Color (4 floats: r, g, b, a)
+		0.0f, 1.0f,           // Texture Coordinate (2 floats: u, v)
+		
 		// V2 (bottom-left)
-		-0.2f,
-		-0.2f,	  // Position
-		1.0f,
-		0.0f,
-		0.0f,	 // Red color
-				 // V3 (bottom-right)
-		0.2f,
-		-0.2f,	  // Position
-		1.0f,
-		0.0f,
-		0.0f,	 // Red color
+		-0.5f, -0.5f, 0.0f,   // Position
+		1.0f, 0.0f, 0.0f, 1.0f,  // Color
+		0.0f, 0.0f,           // Texture Coordinate
+		
+		// V3 (bottom-right)
+		0.5f, -0.5f, 0.0f,    // Position
+		1.0f, 0.0f, 0.0f, 1.0f,  // Color
+		1.0f, 0.0f,           // Texture Coordinate
 
 		// Triangle 2 (top-left, bottom-right, top-right)
 		// V4 (top-left - repeated)
-		-0.2f,
-		0.2f,	 // Position
-		1.0f,
-		0.0f,
-		0.0f,	 // Red color
-				 // V5 (bottom-right - repeated)
-		0.2f,
-		-0.2f,	  // Position
-		1.0f,
-		0.0f,
-		0.0f,	 // Red color
-				 // V6 (top-right)
-		0.2f,
-		0.2f,	 // Position
-		1.0f,
-		0.0f,
-		0.0f	// Red color
+		-0.5f, 0.5f, 0.0f,    // Position
+		1.0f, 0.0f, 0.0f, 1.0f,  // Color
+		0.0f, 1.0f,           // Texture Coordinate
+		
+		// V5 (bottom-right - repeated)
+		0.5f, -0.5f, 0.0f,    // Position
+		1.0f, 0.0f, 0.0f, 1.0f,  // Color
+		1.0f, 0.0f,           // Texture Coordinate
+		
+		// V6 (top-right)
+		0.5f, 0.5f, 0.0f,     // Position
+		1.0f, 0.0f, 0.0f, 1.0f,  // Color
+		1.0f, 1.0f            // Texture Coordinate
 	} };	// Temporary mesh for testing
 };
 

@@ -41,6 +41,7 @@ FetchContent_MakeAvailable(glfw)
 find_package(glm CONFIG REQUIRED)
 find_package(Vulkan)
 include_directories(${Vulkan_INCLUDE_DIRS})
+add_compile_definitions(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1)
 
 # Recurse all cpp sources in new folder layout
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
@@ -55,7 +56,8 @@ target_include_directories(NiftyLib PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert" "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag")
+file(GLOB SHADERS "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/*.vert" "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/*.frag")
+message(${SHADERS})
 set(GENERATED_HEADERS "")
 set(SPIRV_FILES "")
 
@@ -65,7 +67,8 @@ foreach(SHADER ${SHADERS})
     get_filename_component(SHADER_NAME ${SHADER} NAME)
     set(SPIRV "${CMAKE_CURRENT_BINARY_DIR}/src/shaders/${SHADER_NAME}.spv")
     set(HEADER "${CMAKE_CURRENT_SOURCE_DIR}/include/generated/${SHADER_NAME}.spv.h")
-
+    
+    message("Compiling ${SHADER_NAME} to SPIR-V")
     add_custom_command(
         OUTPUT ${SPIRV}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/shaders
@@ -75,6 +78,7 @@ foreach(SHADER ${SHADERS})
         VERBATIM
     )
 
+    message("Converting ${SPIRV} to header in source tree")
     add_custom_command(
         OUTPUT "${HEADER}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_SOURCE_DIR}/include/generated"
