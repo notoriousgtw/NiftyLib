@@ -17,6 +17,8 @@ layout (location = 2) in vec2 vertex_texture_coord;
 
 layout (location = 0) out vec4 frag_color;
 layout (location = 1) out vec2 frag_texture_coord;
+layout (location = 2) out vec3 frag_world_pos;
+layout (location = 3) out vec3 frag_normal;
 
 void main() {
 	vec3 debug_colors[4] = vec3[4](
@@ -26,9 +28,14 @@ void main() {
 		vec3(1.0, 1.0, 0.0)   // Yellow for instance 3
 	);
 
-
-	gl_Position = CameraData.view_proj * ObjectData.transforms[gl_InstanceIndex] * vec4(vertex_position, 1.0);
+	mat4 model_matrix = ObjectData.transforms[gl_InstanceIndex];
+	vec4 world_pos = model_matrix * vec4(vertex_position, 1.0);
+	gl_Position = CameraData.view_proj * world_pos;
 
 	frag_color = vertex_color;
 	frag_texture_coord = vertex_texture_coord;
+	frag_world_pos = world_pos.xyz;
+	
+	// For now, assume normal is just up vector (you can enhance this later)
+	frag_normal = vec3(0.0, 1.0, 0.0);
 }

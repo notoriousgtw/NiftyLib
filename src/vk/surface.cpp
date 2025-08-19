@@ -10,6 +10,7 @@
 #include "core/error.h"
 
 #include "vk/handler.h"
+#include "vk/image.h"
 #include "vk/scene.h"
 
 #include <GLFW/glfw3.h>
@@ -37,15 +38,17 @@ Surface::Surface(Instance* instance, Device* device, GLFWwindow* window):
 	input_assembly_stage(device),
 	viewport_stage(device),
 	rasterization_stage(device),
+	depth_stencil_stage(device),
 	multisample_stage(device),
 	color_blend_stage(device),
-	frame_set_layout(this),   // Keep instance pointer for surface context and debugging
-	mesh_set_layout(this),    // Keep instance pointer for surface context and debugging
+	frame_set_layout(this),	   // Keep instance pointer for surface context and debugging
+	texture_set_layout(this),  // Keep instance pointer for surface context and debugging
 	frame_descriptor_pool(device),
-	mesh_descriptor_pool(device),
+	texture_descriptor_pool(device),
 	pipeline_layout(device),
 	render_pass(device),
 	clear_color(vk::ClearColorValue(std::array<float, 4> { 0.2f, 0.2f, 0.2f, 1.0f })),
+	clear_depth(vk::ClearDepthStencilValue(1.0f, 0)),
 	is_cleaned_up(false)
 {
 	// Validate input parameters
@@ -105,25 +108,24 @@ void Surface::InitSwapchain()
 	// app->GetLogger()->Debug("Querying Swapchain Support...", "VKInit");
 
 	// Query swapchain support details
-	support_details.capabilities =
-		device->vk_physical_device.getSurfaceCapabilitiesKHR(vk_surface);
-	support_details.formats = device->vk_physical_device.getSurfaceFormatsKHR(vk_surface);
-	support_details.present_modes =
-		device->vk_physical_device.getSurfacePresentModesKHR(vk_surface);
+	support_details.capabilities  = device->vk_physical_device.getSurfaceCapabilitiesKHR(vk_surface);
+	support_details.formats		  = device->vk_physical_device.getSurfaceFormatsKHR(vk_surface);
+	support_details.present_modes = device->vk_physical_device.getSurfacePresentModesKHR(vk_surface);
 
 	LogSupportDetails();
-	CreateSwapchain();
 
 	// Create synchronization objects using Device wrapper methods
 	// app->GetLogger()->Debug("Creating Synchronization Objects...", "VKInit");
-for (auto& frame : frames)
-	{
-		frame.in_flight_fence			= device->CreateFence(true);
-		frame.image_available_semaphore = device->CreateSemaphore();
-		frame.render_finished_semaphore = device->CreateSemaphore();
-		frame.Init(this, scene.get());
-		frame.MakeDescriptorResources();
-	}
+	//for (auto& frame : frames)
+	//{
+	//	frame.in_flight_fence			= device->CreateFence(true);
+	//	frame.image_available_semaphore = device->CreateSemaphore();
+	//	frame.render_finished_semaphore = device->CreateSemaphore();
+	//	frame.Init(this, scene.get());
+	//	frame.MakeDescriptorResources();
+	//}
+
+	CreateSwapchain();
 	// app->GetLogger()->Debug("Synchronization Objects Created Successfully!", "VKInit");
 }
 
@@ -187,7 +189,7 @@ void Surface::CreateSwapchain()
 	{
 		NFT_ERROR(VKFatal, std::format("Failed To Create Swapchain:\n{}", err.what()));
 	}
-
+	// Get swapchain images and create image views
 	// Get swapchain images and create image views
 	std::vector<vk::Image> image_vec = device->vk_device.getSwapchainImagesKHR(vk_swapchain);
 	this->frames.resize(image_vec.size());
@@ -195,29 +197,49 @@ void Surface::CreateSwapchain()
 
 	for (size_t i = 0; i < image_vec.size(); i++)
 	{
-		auto& frame				 = frames.at(i);
-		frame.image				 = image_vec.at(i);
-		frame.vk_image_view_info = vk::ImageViewCreateInfo()
-									   .setFlags(vk::ImageViewCreateFlags())
-									   .setImage(frame.image)
-									   .setViewType(vk::ImageViewType::e2D)
-									   .setFormat(format.format)
-									   .setComponents(vk::ComponentMapping())
-									   .setSubresourceRange(vk::ImageSubresourceRange()
-																.setAspectMask(vk::ImageAspectFlagBits::eColor)
-																.setBaseMipLevel(0)
-																.setLevelCount(1)
-																.setBaseArrayLayer(0)
-																.setLayerCount(1));
-		try
-		{
-			frame.vk_image_view =
-				device->vk_device.createImageView(frame.vk_image_view_info);
-		}
-		catch (const vk::SystemError& err)
-		{
-			NFT_ERROR(VKFatal, std::format("Failed To Create Image View:\n{}", err.what()));
-		}
+		auto& frame = frames.at(i);
+
+		frame.in_flight_fence			= device->CreateFence(true);
+		frame.image_available_semaphore = device->CreateSemaphore();
+		frame.render_finished_semaphore = device->CreateSemaphore();
+		frame.Init(this, scene.get());
+		frame.MakeDescriptorResources();
+
+		auto& swapchain_image = frame.swapchain_image;
+		swapchain_image.SetDevice(device);
+		swapchain_image.Init(image_vec.at(i),
+							 vk::ImageCreateInfo()
+								 .setExtent(vk::Extent3D(vk_swapchain_info.imageExtent, 1))
+								 .setFormat(vk_swapchain_info.imageFormat)
+								 .setUsage(vk_swapchain_info.imageUsage));
+		swapchain_image.CreateImageView(format.format);
+
+		depth_format = FindFormat(device,
+								  { vk::Format::eD32Sfloat, vk::Format::eD24UnormS8Uint },
+								  vk::ImageTiling::eOptimal,
+								  vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
+		auto& depth_buffer = frame.depth_buffer;
+		depth_buffer.SetDevice(device);
+		depth_buffer.Init(vk::ImageCreateInfo()
+							  .setImageType(vk::ImageType::e2D)
+							  .setExtent(vk::Extent3D(vk_swapchain_info.imageExtent, 1))
+							  .setFormat(depth_format)
+							  .setTiling(vk::ImageTiling::eOptimal)
+							  .setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment),
+						  vk::MemoryPropertyFlagBits::eDeviceLocal);
+		depth_buffer.SetSubresourceRange(vk::ImageSubresourceRange()
+											 .setAspectMask(vk::ImageAspectFlagBits::eDepth)
+											 .setBaseMipLevel(0)
+											 .setLevelCount(1)
+											 .setBaseArrayLayer(0)
+											 .setLayerCount(1));
+		depth_buffer.SetSubresourceLayers(vk::ImageSubresourceLayers()
+											  .setAspectMask(vk::ImageAspectFlagBits::eDepth)
+											  .setMipLevel(0)
+											  .setBaseArrayLayer(0)
+											  .setLayerCount(1));
+		depth_buffer.CreateImageView(depth_format);
 	}
 
 	app->GetLogger()->Debug(std::format("Swapchain For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(window)),
@@ -226,8 +248,7 @@ void Surface::CreateSwapchain()
 
 void Surface::RecreateSwapchain()
 {
-	// app->GetLogger()->Debug(std::format("Recreating Swapchain For Window: \"{}\"...", glfwGetWindowTitle(window)), "VKInit");
-	//  Wait for device to be idle before recreating swapchain
+	// Wait for device to be idle before recreating swapchain
 	int width  = 0;
 	int height = 0;
 
@@ -240,12 +261,20 @@ void Surface::RecreateSwapchain()
 	device->vk_device.waitIdle();
 	// Cleanup old swapchain resources
 	CleanupSwapchain();
+	frame_descriptor_pool.Cleanup();
 	// Recreate swapchain and related resources
 	InitSwapchain();
 	CreateFrameBuffers();
 	CreateFrameCommandBuffers();
-	// app->GetLogger()->Debug(std::format("Swapchain For Window: \"{}\" Recreated Successfully!", glfwGetWindowTitle(window)),
-	//						"VKInit");
+
+	std::vector<DescriptorSetLayout::Binding> frame_bindings = {
+		{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex },
+		{ 1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eVertex }
+	};
+	frame_descriptor_pool.Init(frame_bindings, frames.size());
+
+	for (auto& frame : frames)
+		frame.AllocateDescriptorResources();
 }
 
 //=============================================================================
@@ -288,9 +317,12 @@ void Surface::CreatePipeline()
 													.setModule(shader_stages.back().shader->GetShaderModule())
 													.setPName("main");
 
+	depth_stencil_stage.Init();
+
 	multisample_stage.Init();
 	color_blend_stage.Init();
 
+	// Set 0: Frame data (camera + object transforms)
 	std::vector<DescriptorSetLayout::Binding> frame_bindings = {
 		{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex },
 		{ 1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eVertex }
@@ -298,30 +330,30 @@ void Surface::CreatePipeline()
 
 	frame_set_layout.Init(frame_bindings);
 
-	std::vector<DescriptorSetLayout::Binding> mesh_bindings = {
-		{ 0, vk::DescriptorType::eCombinedImageSampler, 1, vk::ShaderStageFlagBits::eFragment }
+	// Set 1: Texture array (all textures in one binding)
+	std::vector<DescriptorSetLayout::Binding> texture_bindings = {
+		{ 0, vk::DescriptorType::eCombinedImageSampler, 32, vk::ShaderStageFlagBits::eFragment } // Array of 32 textures
 	};
 
-	mesh_set_layout.Init(mesh_bindings);
+	texture_set_layout.Init(texture_bindings);
+
+	// Update descriptor set layouts vector
+	vk_descriptor_set_layouts = {
+		frame_set_layout.vk_descriptor_set_layout,
+		texture_set_layout.vk_descriptor_set_layout
+	};
 
 	frame_descriptor_pool.Init(frame_bindings, frames.size());
-	mesh_descriptor_pool.Init(mesh_bindings, scene->textures.size());
+	texture_descriptor_pool.Init(texture_bindings, 1); // Only need one set for all textures
 
 	for (auto& frame : frames)
 		frame.AllocateDescriptorResources();
 
-	app->GetLogger()->Debug(std::format(
-    "Allocating {} texture descriptor sets (pool maxSets={}, typeCount={})",
-    scene->textures.size(),
-    mesh_descriptor_pool.vk_descriptor_pool_info.maxSets,
-    mesh_descriptor_pool.vk_descriptor_pool_info.poolSizeCount),
-    "VKInit");
-
-	for (auto& tex : scene->textures)
-		tex.CreateDescriptorSet(mesh_set_layout.vk_descriptor_set_layout, mesh_descriptor_pool.vk_descriptor_pool);
+	// Create a single texture descriptor set for all material textures
+	CreateTextureDescriptorSet();
 
 	pipeline_layout.Init(vk_descriptor_set_layouts);
-	render_pass.Init(format.format);
+	render_pass.Init(format.format, depth_format);
 
 	// Create pipeline info with all stages
 	std::vector<vk::PipelineShaderStageCreateInfo> shader_stage_info;
@@ -337,6 +369,7 @@ void Surface::CreatePipeline()
 						   .setPInputAssemblyState(&input_assembly_stage.vk_input_assembly_info)
 						   .setPViewportState(&viewport_stage.vk_viewport_state_info)
 						   .setPRasterizationState(&rasterization_stage.vk_rasterization_info)
+						   .setPDepthStencilState(&depth_stencil_stage.vk_depth_stencil_info)
 						   .setPMultisampleState(&multisample_stage.vk_multisample_info)
 						   .setPColorBlendState(&color_blend_stage.vk_color_blend_info)
 						   .setLayout(pipeline_layout.vk_pipeline_layout)
@@ -346,8 +379,7 @@ void Surface::CreatePipeline()
 
 	try
 	{
-		vk_pipeline =
-			device->vk_device.createGraphicsPipeline(nullptr, vk_pipeline_info).value;
+		vk_pipeline = device->vk_device.createGraphicsPipeline(nullptr, vk_pipeline_info).value;
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -355,6 +387,59 @@ void Surface::CreatePipeline()
 	}
 
 	app->GetLogger()->Debug("Pipeline Created Successfully!", "VKInit");
+}
+
+void Surface::CreateTextureDescriptorSet()
+{
+	// Create texture array descriptor set
+	if (scene->textures.empty()) {
+		NFT_ERROR(VKFatal, "No textures available for texture array descriptor set!");
+		return;
+	}
+
+	vk::DescriptorSetAllocateInfo alloc_info = vk::DescriptorSetAllocateInfo()
+											   .setDescriptorPool(texture_descriptor_pool.vk_descriptor_pool)
+											   .setDescriptorSetCount(1)
+											   .setPSetLayouts(&texture_set_layout.vk_descriptor_set_layout);
+	try
+	{
+		texture_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info)[0];
+	}
+	catch (const vk::SystemError& err)
+	{
+		NFT_ERROR(VKFatal, std::format("Failed To Allocate Texture Array Descriptor Set:\n{}", err.what()));
+	}
+
+	// Create array of descriptor image infos
+	std::vector<vk::DescriptorImageInfo> image_infos;
+	image_infos.reserve(32); // Reserve space for 32 textures
+
+	// Add all available textures
+	for (size_t i = 0; i < scene->textures.size() && i < 32; ++i) {
+		image_infos.push_back(vk::DescriptorImageInfo()
+							 .setSampler(scene->textures[i].vk_sampler)
+							 .setImageView(scene->textures[i].GetImageView())
+							 .setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal));
+	}
+
+	// Fill remaining slots with the first texture to avoid validation errors
+	for (size_t i = scene->textures.size(); i < 32; ++i) {
+		image_infos.push_back(vk::DescriptorImageInfo()
+							 .setSampler(scene->textures[0].vk_sampler)
+							 .setImageView(scene->textures[0].GetImageView())
+							 .setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal));
+	}
+
+	// Update descriptor set with texture array
+	vk::WriteDescriptorSet descriptor_write = vk::WriteDescriptorSet()
+											  .setDstSet(texture_descriptor_set)
+											  .setDstBinding(0)
+											  .setDstArrayElement(0)
+											  .setDescriptorCount(32)
+											  .setDescriptorType(vk::DescriptorType::eCombinedImageSampler)
+											  .setPImageInfo(image_infos.data());
+
+	device->vk_device.updateDescriptorSets(1, &descriptor_write, 0, nullptr);
 }
 
 //=============================================================================
@@ -366,7 +451,9 @@ void Surface::CreateFrameBuffers()
 	size_t i = 0;
 	for (auto& frame : frames)
 	{
-		std::vector<vk::ImageView> attachments = { frame.vk_image_view };
+		auto&					   frame_image_view = frame.swapchain_image.GetImageView();
+		auto&					   frame_depth_buffer_view = frame.depth_buffer.GetImageView();
+		std::vector<vk::ImageView> attachments		= { frame_image_view, frame_depth_buffer_view };
 
 		frame.vk_frame_buffer_info = vk::FramebufferCreateInfo()
 										 .setFlags(vk::FramebufferCreateFlags())
@@ -379,8 +466,7 @@ void Surface::CreateFrameBuffers()
 
 		try
 		{
-			frame.vk_frame_buffer =
-				device->vk_device.createFramebuffer(frame.vk_frame_buffer_info);
+			frame.vk_frame_buffer = device->vk_device.createFramebuffer(frame.vk_frame_buffer_info);
 		}
 		catch (const vk::SystemError& err)
 		{
@@ -444,26 +530,31 @@ void Surface::PrepareScene(vk::CommandBuffer command_buffer)
 		return;
 	}
 
-	vk::Buffer	 vertex_buffers[] = { scene->GetGeometryBatcher()->GetVertexBuffer()->vk_buffer };
+	vk::Buffer	 vertex_buffers[] = { scene->GetGeometryBatcher()->vertex_buffer->vk_buffer };
 	VkDeviceSize offsets[]		  = { 0 };	  // Start from the beginning of the buffer
 	command_buffer.bindVertexBuffers(0, 1, vertex_buffers, offsets);
+	if (scene->geometry_batcher->index_data.empty())
+		return;
+	command_buffer.bindIndexBuffer(scene->geometry_batcher->index_buffer->vk_buffer, 0, vk::IndexType::eUint32);
 }
 
 void Surface::Render()
 {
-	device->vk_device.waitForFences(frames[frame_index].in_flight_fence, VK_TRUE, UINT64_MAX);
+	Frame& current_frame = frames[frame_index];
+
+	device->vk_device.waitForFences(current_frame.in_flight_fence, VK_TRUE, UINT64_MAX);
+	device->vk_device.resetFences(current_frame.in_flight_fence);
 
 	uint32_t image_index;
 	try
 	{
-		vk::ResultValue aquire =
-			device->vk_device.acquireNextImage2KHR(vk::AcquireNextImageInfoKHR()
-													   .setSwapchain(vk_swapchain)
-													   .setTimeout(UINT64_MAX)
-													   .setSemaphore(frames[frame_index].image_available_semaphore)
-													   .setFence(nullptr)
-													   .setDeviceMask(1));
-		image_index = aquire.value;
+		vk::ResultValue aquire = device->vk_device.acquireNextImage2KHR(vk::AcquireNextImageInfoKHR()
+																			.setSwapchain(vk_swapchain)
+																			.setTimeout(UINT64_MAX)
+																			.setSemaphore(current_frame.image_available_semaphore)
+																			.setFence(nullptr)
+																			.setDeviceMask(1));
+		image_index			   = aquire.value;
 	}
 	catch (vk::OutOfDateKHRError)
 	{
@@ -471,28 +562,26 @@ void Surface::Render()
 		return;
 	}
 
-	device->vk_device.resetFences(frames[frame_index].in_flight_fence);
-
-	vk::CommandBuffer command_buffer = frames[frame_index].vk_command_buffer;
+	vk::CommandBuffer command_buffer = current_frame.vk_command_buffer;
 	command_buffer.reset(vk::CommandBufferResetFlags());
 
-	frames[frame_index].Prepare();
-	RecordDrawCommands(frames[frame_index], image_index);
+	current_frame.Prepare();
+	RecordDrawCommands(current_frame, image_index);
 
 	vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
 	vk::SubmitInfo submit_info = vk::SubmitInfo()
 									 .setWaitSemaphoreCount(1)
-									 .setPWaitSemaphores(&frames[frame_index].image_available_semaphore)
+									 .setPWaitSemaphores(&current_frame.image_available_semaphore)
 									 .setPWaitDstStageMask(&wait_stages)
 									 .setCommandBufferCount(1)
 									 .setPCommandBuffers(&command_buffer)
 									 .setSignalSemaphoreCount(1)
-									 .setPSignalSemaphores(&frames[frame_index].render_finished_semaphore);
+									 .setPSignalSemaphores(&frames[image_index].render_finished_semaphore);
 
 	try
 	{
-		device->vk_graphics_queue.submit(submit_info, frames[frame_index].in_flight_fence);
+		device->vk_graphics_queue.submit(submit_info, current_frame.in_flight_fence);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -501,7 +590,7 @@ void Surface::Render()
 
 	vk::PresentInfoKHR present_info = vk::PresentInfoKHR()
 										  .setWaitSemaphoreCount(1)
-										  .setPWaitSemaphores(&frames[frame_index].render_finished_semaphore)
+										  .setPWaitSemaphores(&frames[image_index].render_finished_semaphore)
 										  .setSwapchainCount(1)
 										  .setPSwapchains(&vk_swapchain)
 										  .setPImageIndices(&image_index);
@@ -521,38 +610,35 @@ void Surface::Render()
 
 void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 {
-	//app->GetLogger()->Debug(std::format("Using orthographic projection with bounds: left={}, right={}, bottom={}, top={}",
-	//									-2.0f * aspect,
-	//									2.0f * aspect,
-	//									-2.0f,
-	//									2.0f),
-	//						"VKRender");
-
 	// Record commands for each frame
 	auto					   command_buffer = frame.vk_command_buffer;
 	vk::CommandBufferBeginInfo begin_info	  = vk::CommandBufferBeginInfo();
 	command_buffer.begin(begin_info);
 
+	std::vector<vk::ClearValue> clear_values = { clear_color, clear_depth };
+
 	vk::RenderPassBeginInfo render_pass_begin_info = vk::RenderPassBeginInfo()
 														 .setRenderPass(render_pass.vk_render_pass)
 														 .setFramebuffer(frames[image_index].vk_frame_buffer)
 														 .setRenderArea(vk::Rect2D().setOffset({ 0, 0 }).setExtent(extent))
-														 .setClearValueCount(1)
-														 .setPClearValues(&clear_color);
+														 .setClearValueCount(clear_values.size())
+														 .setPClearValues(clear_values.data());
 	command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
-	command_buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-									  pipeline_layout.vk_pipeline_layout,
-									  0,
-									  { frame.vk_descriptor_set },
-									  nullptr);
+	// Bind frame descriptor set (set 0: camera + transforms)
+	command_buffer.bindDescriptorSets(
+		vk::PipelineBindPoint::eGraphics, pipeline_layout.vk_pipeline_layout, 0, { frame.vk_descriptor_set }, nullptr);
+
+	// Bind texture descriptor set (set 1: material textures)
+	command_buffer.bindDescriptorSets(
+		vk::PipelineBindPoint::eGraphics, pipeline_layout.vk_pipeline_layout, 1, { texture_descriptor_set }, nullptr);
 
 	command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_pipeline);
 
 	PrepareScene(command_buffer);
 
-	//app->GetLogger()->Debug(std::format("Total objects: {}", scene->objects.size()), "VKRender");
-	//app->GetLogger()->Debug(std::format("Mesh data entries: {}", scene->geometry_batcher->mesh_data.size()), "VKRender");
+	app->GetLogger()->Debug(std::format("Total objects: {}", scene->objects.size()), "VKRender");
+	app->GetLogger()->Debug(std::format("Mesh data entries: {}", scene->geometry_batcher->mesh_data.size()), "VKRender");
 
 	const auto& meshes = scene->geometry_batcher->mesh_data;
 
@@ -563,67 +649,73 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 
 		uint32_t vertex_count = static_cast<uint32_t>(mesh_data.size);
 		uint32_t first_vertex = static_cast<uint32_t>(mesh_data.offset);
+		uint32_t index_count  = static_cast<uint32_t>(mesh_data.index_size);
+		uint32_t first_index  = static_cast<uint32_t>(mesh_data.index_offset);
 
-		//app->GetLogger()->Debug(
-		//	std::format("Mesh vertex data: count={}, offset={}, data_size={}", vertex_count, first_vertex, mesh->vertices.size()),
-		//	"VKRender");
+		app->GetLogger()->Debug(
+			std::format("Mesh vertex data: count={}, offset={}, data_size={}", vertex_count, first_vertex, mesh->vertices->size()),
+			"VKRender");
 
-
-		// Draw each object separately by updating instance ID manually
+		// Draw each object separately with per-object material push constants
 		for (uint32_t instance_id = 0; instance_id < scene->objects.size(); ++instance_id)
 		{
 			if (scene->objects[instance_id].mesh == mesh)
 			{
-				//app->GetLogger()->Debug(std::format("Drawing object {}: vertex_count={}, first_vertex={}, instance_id={}",
-				//									instance_id,
-				//									vertex_count,
-				//									first_vertex,
-				//									instance_id),
-				//						"VKRender");
+				const auto& object = scene->objects[instance_id];
+				
+				app->GetLogger()->Debug(std::format("Drawing object {}: vertex_count={}, first_vertex={}, instance_id={}",
+													instance_id,
+													vertex_count,
+													first_vertex,
+													instance_id),
+										"VKRender");
 
-				scene->textures[scene->objects[instance_id].texture_index].Use(command_buffer, vk::PipelineBindPoint::eGraphics, pipeline_layout.vk_pipeline_layout, 1);
-				// Draw single instance
-				command_buffer.draw(vertex_count, 1, first_vertex, instance_id);
+				// Create material push constants for this object
+				MaterialPushConstants material_push;
+				if (object.material_index < scene->materials.size()) {
+					const auto& material = scene->materials[object.material_index];
+					material_push.ambient = material.ambient;
+					material_push.diffuse = material.diffuse;
+					material_push.specular = material.specular;
+					material_push.specular_highlights = material.specular_highlights;
+					material_push.diffuse_texture_index = material.diffuse_texture_index != UINT32_MAX ? material.diffuse_texture_index : 33;
+					material_push.ambient_texture_index = material.ambient_texture_index != UINT32_MAX ? material.ambient_texture_index : 33; // Use invalid index (will be clamped in shader)
+					material_push.specular_texture_index = material.specular_texture_index != UINT32_MAX ? material.specular_texture_index : 33; // Use invalid index
+					material_push.padding = 0;
+				} else {
+					// Default material
+					material_push.ambient = glm::vec3(0.1f);
+					material_push.diffuse = glm::vec3(0.8f);
+					material_push.specular = glm::vec3(0.5f);
+					material_push.specular_highlights = 32.0f;
+					material_push.diffuse_texture_index = 0; // Use first texture as default
+					material_push.ambient_texture_index = 31; // Invalid index
+					material_push.specular_texture_index = 31; // Invalid index
+					material_push.padding = 0;
+				}
+
+				// Push the material constants
+				command_buffer.pushConstants(
+					pipeline_layout.vk_pipeline_layout,
+					vk::ShaderStageFlagBits::eFragment,
+					0,
+					sizeof(MaterialPushConstants),
+					&material_push
+				);
+
+				if (index_count == 0)
+				{
+					// Draw without index buffer
+					command_buffer.draw(vertex_count, 1, first_vertex, instance_id);
+				}
+				else
+				{
+					// Draw with index buffer
+					command_buffer.drawIndexed(index_count, 1, first_index, 0, instance_id);
+				}
 			}
 		}
 	}
-
-	//// Draw each mesh with proper instancing
-	//const auto& meshes = scene->geometry_batcher->mesh_data;
-	//uint32_t first_instance = 0;
-	//
-	//for (const auto& mesh_entry : meshes)
-	//{
-	//	const IMesh* mesh = mesh_entry.first;
-	//	const GeometryBatcher::MeshData& mesh_data = mesh_entry.second;
-	//	
-	//	// Count how many objects use this mesh
-	//	uint32_t instance_count = 0;
-	//	for (const auto& object_data : scene->objects)
-	//	{
-	//		if (object_data.mesh == mesh)
-	//			instance_count++;
-	//	}
-
-	//	if (instance_count > 0)
-	//	{
-	//		uint32_t vertex_count = static_cast<uint32_t>(mesh_data.size);
-	//		uint32_t first_vertex = static_cast<uint32_t>(mesh_data.offset);
-
-	//		app->GetLogger()->Debug(
-	//			std::format("Drawing mesh: vertex_count={}, instance_count={}, first_vertex={}, first_instance={}",
-	//						vertex_count,
-	//						instance_count,
-	//						first_vertex,
-	//						first_instance),
-	//			"VKRender");
-
-
-	//		// Draw all instances of this mesh type at once
-	//		command_buffer.draw(vertex_count, instance_count, first_vertex, first_instance, instance->dispatch_loader_dynamic);
-	//		first_instance += instance_count;
-	//	}
-	//}
 
 	command_buffer.endRenderPass();
 	command_buffer.end();
@@ -645,29 +737,7 @@ void Surface::CleanupSwapchain()
 	}
 	// Cleanup frame resources
 	for (auto& frame : frames)
-	{
-		if (frame.vk_image_view)
-			device->vk_device.destroyImageView(frame.vk_image_view);
-		if (frame.vk_frame_buffer)
-			device->vk_device.destroyFramebuffer(frame.vk_frame_buffer);
-		if (frame.in_flight_fence)
-			device->vk_device.destroyFence(frame.in_flight_fence);
-		if (frame.image_available_semaphore)
-			device->vk_device.destroySemaphore(frame.image_available_semaphore);
-		if (frame.render_finished_semaphore)
-			device->vk_device.destroySemaphore(frame.render_finished_semaphore);
-		if (frame.camera_data_buffer)
-		{
-			device->vk_device.unmapMemory(frame.camera_data_buffer->vk_memory);
-			device->buffer_manager->DestroyBuffer(frame.camera_data_buffer);
-		}
-		if (frame.object_transform_buffer)
-		{
-			device->vk_device.unmapMemory(frame.object_transform_buffer->vk_memory);
-			device->buffer_manager->DestroyBuffer(frame.object_transform_buffer);
-		}
-		frame.vk_image_view = VK_NULL_HANDLE;
-	}
+		frame.Cleanup();
 	frames.clear();
 }
 
@@ -706,14 +776,18 @@ void Surface::Cleanup()
 
 		CleanupSwapchain();
 
+		frame_descriptor_pool.Cleanup();
+		texture_descriptor_pool.Cleanup();
+
 		frame_set_layout.Cleanup();
-		mesh_set_layout.Cleanup();
+		texture_set_layout.Cleanup();
 
 		app->GetLogger()->Debug("Surface Vulkan objects cleaned up successfully", "VKShutdown");
 	}
 
 	is_cleaned_up = true;
 }
+
 //=============================================================================
 // UTILITY AND SELECTION METHODS
 //=============================================================================
@@ -757,7 +831,7 @@ void log_transform_bits(Logger* logger, Logger::DisplayFlags log_flags, const vk
 		supported_transforms.push_back("Rotate 90 - Rotates the surface 90 degrees clockwise.");
 	if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eRotate180)
 		supported_transforms.push_back("Rotate 180 - Rotates the surface 180 degrees.");
- if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eRotate270)
+	if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eRotate270)
 		supported_transforms.push_back("Rotate 270 - Rotates the surface 270 degrees clockwise.");
 	if (capabilities.supportedTransforms & vk::SurfaceTransformFlagBitsKHR::eHorizontalMirror)
 		supported_transforms.push_back("Horizontal Mirror - Flips the surface horizontally.");
@@ -916,9 +990,11 @@ void Surface::Frame::Init(Surface* surface, Scene* scene)
 		NFT_ERROR(VKFatal, "Surface pointer is null!");
 	if (!scene)
 		NFT_ERROR(VKFatal, "Scene pointer is null!");
-	this->surface = surface;
-	this->device  = surface->device;
-	this->scene	  = scene;
+	this->surface	= surface;
+	this->device	= surface->device;
+	this->scene		= scene;
+	swapchain_image = Image(device);
+	depth_buffer	= Image(device);
 }
 
 void Surface::Frame::MakeDescriptorResources()
@@ -929,31 +1005,21 @@ void Surface::Frame::MakeDescriptorResources()
 															  vk::BufferUsageFlagBits::eUniformBuffer,
 															  vk::MemoryPropertyFlagBits::eHostVisible |
 																  vk::MemoryPropertyFlagBits::eHostCoherent);
-	camera_data_ptr	   = device->vk_device.mapMemory(camera_data_buffer->vk_memory,
-													 0,
-													 camera_data_buffer->vk_memory_info.allocationSize,
-													 vk::MemoryMapFlags());
+	camera_data_ptr	   = device->vk_device.mapMemory(
+		   camera_data_buffer->vk_memory, 0, camera_data_buffer->vk_memory_info.allocationSize, vk::MemoryMapFlags());
 
-	size_t buffer_size = sizeof(glm::mat4) * scene->objects.size();
-	size_t aligned_size = ((buffer_size + 15) / 16) * 16;	// Align to 256 bytes
+	size_t buffer_size	= sizeof(glm::mat4) * scene->objects.size();
+	size_t aligned_size = ((buffer_size + 15) / 16) * 16;	 // Align to 256 bytes
 
 	object_transform_buffer = device->buffer_manager->CreateBuffer(buffer_size,
 																   vk::BufferUsageFlagBits::eStorageBuffer,
 																   vk::MemoryPropertyFlagBits::eHostVisible |
 																	   vk::MemoryPropertyFlagBits::eHostCoherent);
-	object_transform_ptr	= device->vk_device.mapMemory(object_transform_buffer->vk_memory,
-														  0,
-														  object_transform_buffer->vk_memory_info.allocationSize,
-														  vk::MemoryMapFlags());
+	object_transform_ptr	= device->vk_device.mapMemory(
+		   object_transform_buffer->vk_memory, 0, object_transform_buffer->vk_memory_info.allocationSize, vk::MemoryMapFlags());
 
 	// CRITICAL FIX: Clear the GPU memory to zero
 	std::memset(object_transform_ptr, 0, object_transform_buffer->vk_memory_info.allocationSize);
-
-	//surface->app->GetLogger()->Debug(std::format("Storage buffer: requested_size={}, aligned_size={}, actual_size={}",
-	//											 buffer_size,
-	//											 aligned_size,
-	//											 object_transform_buffer->vk_memory_info.allocationSize),
-	//								 "VKRender");
 
 	object_transforms.resize(scene->objects.size());
 	for (int i = 0; i < scene->objects.size(); ++i)
@@ -971,18 +1037,35 @@ void Surface::Frame::AllocateDescriptorResources()
 		NFT_ERROR(VKFatal, "Camera data buffer is not initialized!");
 		return;
 	}
-	vk::DescriptorSetAllocateInfo alloc_info = vk::DescriptorSetAllocateInfo()
-												   .setDescriptorPool(surface->frame_descriptor_pool.vk_descriptor_pool)
-												   .setDescriptorSetCount(1)
-												   .setPSetLayouts(&surface->frame_set_layout.vk_descriptor_set_layout);
+
+	// Allocate frame descriptor set (camera + transforms)
+	vk::DescriptorSetAllocateInfo frame_alloc_info = vk::DescriptorSetAllocateInfo()
+													.setDescriptorPool(surface->frame_descriptor_pool.vk_descriptor_pool)
+													.setDescriptorSetCount(1)
+													.setPSetLayouts(&surface->frame_set_layout.vk_descriptor_set_layout);
 	try
 	{
-		vk_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info)[0];
+		vk_descriptor_set = device->vk_device.allocateDescriptorSets(frame_alloc_info)[0];
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Descriptor Set:\n{}", err.what()));
+		NFT_ERROR(VKFatal, std::format("Failed To Allocate Frame Descriptor Set:\n{}", err.what()));
 	}
+}
+
+void Surface::Frame::MakeDepthResources()
+{
+	if (!surface)
+		NFT_ERROR(VKFatal, "Surface pointer is null!");
+	if (!device)
+		NFT_ERROR(VKFatal, "Device pointer is null!");
+
+	// vk_depth_buffer			= device->buffer_manager->CreateImage(surface->vk_swapchain_info.imageExtent.width,
+	//													  surface->vk_swapchain_info.imageExtent.height,
+	//													  depth_format,
+	//													  vk::ImageUsageFlagBits::eDepthStencilAttachment,
+	//													  vk::MemoryPropertyFlagBits::eDeviceLocal);
+	// vk_depth_buffer_view		= device->buffer_manager->CreateImageView(depth_buffer, vk::ImageViewType::e2D, depth_format);
 }
 
 void Surface::Frame::Prepare()
@@ -994,29 +1077,21 @@ void Surface::Frame::Prepare()
 	if (!camera_data_buffer)
 		NFT_ERROR(VKFatal, "Camera data buffer is not initialized!");
 
-
-
-	glm::vec3 eye	 = { 0.0f, 0.0f, -1.0f };
-	glm::vec3 center = { 0.0f, 0.0f, 0.0f };
-	glm::vec3 up	 = { 0.0f, -1.0f, 0.0f };
+	glm::vec3 eye	 = { 0.0f, 1.0f, 0.0f };
+	glm::vec3 center = { 1.0f, 1.0f, 0.0f };
+	glm::vec3 up	 = { 0.0f, 1.0f, 0.0f };
 	camera_data.view = glm::lookAt(eye, center, up);
 
 	camera_data.proj = glm::perspective(glm::radians(45.0f),
 										static_cast<float>(surface->vk_swapchain_info.imageExtent.width) /
 											static_cast<float>(surface->vk_swapchain_info.imageExtent.height),
 										0.1f,
-										10.0f);
+										100.0f);
 
-	//camera_data.view = glm::mat4(1.0f);	   // Identity matrix for now
 	float aspect = static_cast<float>(surface->vk_swapchain_info.imageExtent.width) /
 				   static_cast<float>(surface->vk_swapchain_info.imageExtent.height);
-	//camera_data.proj = glm::ortho(-2.0f * aspect, 2.0f * aspect, -2.0f, 2.0f, -10.0f, 10.0f);
 	camera_data.proj[1][1] *= -1;
 	camera_data.view_proj = camera_data.proj * camera_data.view;
-
-	//surface->app->GetLogger()->Debug(
-	//	std::format("Camera bounds: left={}, right={}, bottom={}, top={}", -2.0f * aspect, 2.0f * aspect, -2.0f, 2.0f),
-	//	"VKRender");
 
 	std::memcpy(camera_data_ptr, &camera_data, sizeof(UniformBufferObject));
 
@@ -1025,59 +1100,16 @@ void Surface::Frame::Prepare()
 	for (size_t idx = 0; idx < object_count; ++idx)
 	{
 		object_transforms[idx] = scene->objects[idx].transform;
-
-		const auto& m = scene->objects[idx].transform;
-		//surface->app->GetLogger()->Debug(std::format("Matrix {} row 0: [{:.3f},{:.3f},{:.3f},{:.3f}]",
-		//											 idx, m[0][0], m[0][1], m[0][2], m[0][3]),
-		//								 "VKRender");
-		//surface->app->GetLogger()->Debug(std::format("Matrix {} row 1: [{:.3f},{:.3f},{:.3f},{:.3f}]",
-		//											 idx, m[1][0], m[1][1], m[1][2], m[1][3]),
-		//								 "VKRender");
-		//surface->app->GetLogger()->Debug(std::format("Matrix {} row 2: [{:.3f},{:.3f},{:.3f},{:.3f}]",
-		//											 idx, m[2][0], m[2][1], m[2][2], m[2][3]),
-		//								 "VKRender");
-		//surface->app->GetLogger()->Debug(std::format("Matrix {} row 3: [{:.3f},{:.3f},{:.3f},{:.3f}]",
-		//											 idx, m[3][0], m[3][1], m[3][2], m[3][3]),
-		//								 "VKRender");
 	}
 
 	const size_t bytes = object_count * sizeof(glm::mat4);
-	//surface->app->GetLogger()->Debug(std::format("Copying {} matrices ({} bytes) to storage buffer",
-	//											 object_count, bytes),
-	//								 "VKRender");
-
-	// Single contiguous copy (glm::mat4 already column-major; matches GLSL default)
 	std::memcpy(object_transform_ptr, object_transforms.data(), bytes);
 
-	// Verify first matrix
-	const float* gpu_floats = static_cast<const float*>(object_transform_ptr);
-	//surface->app->GetLogger()->Debug("First matrix in GPU buffer (post-copy):", "VKRender");
-	//for (int row = 0; row < 4; ++row)
-	//{
-	//	surface->app->GetLogger()->Debug(std::format("  Row {}: [{:.3f},{:.3f},{:.3f},{:.3f}]",
-	//												 row,
-	//												 gpu_floats[row * 4 + 0],
-	//												 gpu_floats[row * 4 + 1],
-	//												 gpu_floats[row * 4 + 2],
-	//												 gpu_floats[row * 4 + 3]),
-	//									 "VKRender");
-	//}
-
+	// Update frame descriptor set (camera + transforms)
 	std::vector<vk::DescriptorBufferInfo> buffer_infos;
 	buffer_infos.push_back(
-		vk::DescriptorBufferInfo()
-			.setBuffer(camera_data_buffer->vk_buffer)
-			.setOffset(0)
-			.setRange(sizeof(UniformBufferObject)));
-	buffer_infos.push_back(
-		vk::DescriptorBufferInfo()
-			.setBuffer(object_transform_buffer->vk_buffer)
-			.setOffset(0)
-			.setRange(bytes));
-
-	//surface->app->GetLogger()->Debug(std::format("Storage buffer descriptor: buffer={}, offset=0, range={}",
-	//											 (void*)object_transform_buffer->vk_buffer, bytes),
-	//								 "VKRender");
+		vk::DescriptorBufferInfo().setBuffer(camera_data_buffer->vk_buffer).setOffset(0).setRange(sizeof(UniformBufferObject)));
+	buffer_infos.push_back(vk::DescriptorBufferInfo().setBuffer(object_transform_buffer->vk_buffer).setOffset(0).setRange(bytes));
 
 	std::vector<vk::WriteDescriptorSet> descriptor_writes;
 	descriptor_writes.push_back(vk::WriteDescriptorSet()
@@ -1096,8 +1128,42 @@ void Surface::Frame::Prepare()
 									.setPBufferInfo(&buffer_infos[1])
 									.setPTexelBufferView(nullptr)
 									.setPImageInfo(nullptr));
-	device->vk_device.updateDescriptorSets(
-		descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+
+	device->vk_device.updateDescriptorSets(descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 }
 
-}	 // namespace nft::vulkan}	 // namespace nft::vulkan
+void Surface::Frame::Cleanup()
+{
+	if (!device)
+		NFT_ERROR(VKFatal, "Device pointer is null!");
+	if (vk_frame_buffer)
+		device->vk_device.destroyFramebuffer(vk_frame_buffer);
+	if (in_flight_fence)
+		device->vk_device.destroyFence(in_flight_fence);
+	if (image_available_semaphore)
+		device->vk_device.destroySemaphore(image_available_semaphore);
+	if (render_finished_semaphore)
+		device->vk_device.destroySemaphore(render_finished_semaphore);
+	if (camera_data_buffer)
+	{
+		if (camera_data_ptr)
+		{
+			device->vk_device.unmapMemory(camera_data_buffer->vk_memory);
+			camera_data_ptr = nullptr;
+		}
+		device->buffer_manager->DestroyBuffer(camera_data_buffer);
+		camera_data_buffer = nullptr;
+	}
+	if (object_transform_buffer)
+	{
+		if (object_transform_ptr)
+		{
+			device->vk_device.unmapMemory(object_transform_buffer->vk_memory);
+			object_transform_ptr = nullptr;
+		}
+		device->buffer_manager->DestroyBuffer(object_transform_buffer);
+		object_transform_buffer = nullptr;
+	}
+}
+
+}	 // namespace nft::vulkan

@@ -85,6 +85,14 @@ namespace nft::vulkan
 		vk::PipelineRasterizationStateCreateInfo vk_rasterization_info;
 	};
 
+	// Depth-stencil stage
+	struct DepthStencilStage: public PipelineStage
+	{
+		DepthStencilStage(Device* device) : PipelineStage(device) {}
+		void Init();
+		vk::PipelineDepthStencilStateCreateInfo vk_depth_stencil_info;
+	};
+
 	// Multisample stage
 	struct MultisampleStage: public PipelineStage
 	{
@@ -162,13 +170,15 @@ namespace nft::vulkan
 	struct RenderPass
 	{
 		RenderPass(Device* device) : device(device) {}
-		void Init(vk::Format format);
+		void Init(vk::Format color_format, vk::Format depth_format);
 		void Cleanup();
 
 		vk::RenderPass			  vk_render_pass = VK_NULL_HANDLE;
 		vk::RenderPassCreateInfo  vk_render_pass_info;
 		vk::AttachmentDescription color_attachment;
 		vk::AttachmentReference	  color_attachment_ref;
+		vk::AttachmentDescription depth_attachment;
+		vk::AttachmentReference	  depth_attachment_ref;
 		vk::SubpassDescription	  vk_subpass;
 
 	  private:

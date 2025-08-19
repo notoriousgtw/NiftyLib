@@ -11,27 +11,17 @@ Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer):
 		NFT_ERROR(VKFatal, "Device Is Null!");
 	geometry_batcher = std::make_unique<GeometryBatcher>(device);
 
-	// Create a grid of squares with proper Z positioning
-	//for (float x = -0.6f; x <= 0.6f; x += 1.2f)
-	//{
-	//	for (float y = 0.0f; y <= 0.6f; y += 0.6f)
-	//	{
-	//		ObjectData object;
-	//		// Position objects at Z=0 instead of Z=1 to avoid camera clipping
-	//		object.transform = glm::translate(glm::mat4(1.0f), glm::vec3(x, y, 0.0f));
-	//		object.mesh		 = &triangle_mesh;
-	//		object.texture_index = 0;	 // Use the first texture
-	//		objects.push_back(object);
-	//	}
-	//}
-	
-	ObjectData square_object;
-	square_object.mesh = &square_mesh;
-	square_object.transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
-	square_object.texture_index = 0;	// Use the first texture
-	objects.push_back(square_object);
+	meshes.resize(1, new SimpleMesh());
 
-	geometry_batcher->AddGeometry(&square_mesh);
+	ObjectData loaded_object;
+	loaded_object.mesh = meshes[0];
+	loaded_object.mesh->LoadObj("./assets/models", "plane.obj");
+	loaded_object.transform = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+	loaded_object.material_index = 0;  // Use the first material
+	objects.push_back(loaded_object);
+	geometry_batcher->AddGeometry(loaded_object.mesh);
+
+	// Load multiple textures for demonstration
 	textures.push_back(Texture(device));
 	textures[0].SetupCommands(main_command_buffer, device->vk_graphics_queue);
 	textures[0].LoadFile("./assets/textures/chancy.png");
@@ -50,8 +40,59 @@ Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer):
 								  .setMipmapMode(vk::SamplerMipmapMode::eLinear)
 								  .setMipLodBias(0.0f));
 
-	// geometry_batcher->Batch();
-	geometry_batcher->CreateBuffer(main_command_buffer, device->vk_graphics_queue);
+	// Try to load additional textures if they exist (for demonstration)
+	// In a real application, you'd load these from your material definitions
+	try {
+		textures.push_back(Texture(device));
+		textures[1].SetupCommands(main_command_buffer, device->vk_graphics_queue);
+		// Try loading a different texture - fallback to first texture if not found
+		textures[1].LoadFile("./assets/textures/texture.png"); // You could add this texture
+		textures[1].CreateSampler(vk::SamplerCreateInfo()
+									  .setMagFilter(vk::Filter::eLinear)
+									  .setMinFilter(vk::Filter::eLinear)
+									  .setAddressModeU(vk::SamplerAddressMode::eRepeat)
+									  .setAddressModeV(vk::SamplerAddressMode::eRepeat)
+									  .setAddressModeW(vk::SamplerAddressMode::eRepeat)
+									  .setAnisotropyEnable(VK_TRUE)
+									  .setMaxAnisotropy(16.0f)
+									  .setBorderColor(vk::BorderColor::eIntOpaqueBlack)
+									  .setUnnormalizedCoordinates(VK_FALSE)
+									  .setCompareEnable(VK_FALSE)
+									  .setCompareOp(vk::CompareOp::eAlways)
+									  .setMipmapMode(vk::SamplerMipmapMode::eLinear)
+									  .setMipLodBias(0.0f));
+	} catch (...) {
+		// If second texture fails to load, remove it
+		if (textures.size() > 1) {
+			textures.pop_back();
+		}
+	}
+
+	// Add example materials with texture references
+	Material default_material = {
+		glm::vec3(0.1f, 0.1f, 0.1f),   // ambient - low ambient lighting
+		glm::vec3(0.6f, 0.6f, 0.9f),   // diffuse - main color contribution
+		glm::vec3(0.1f, 0.1f, 0.1f),   // specular - reflective highlights
+		0.0f,                          // specular_highlights - shininess
+		UINT32_MAX,                     // ambient_texture_index - no ambient texture
+		UINT32_MAX,                              // diffuse_texture_index - use first texture
+		UINT32_MAX                      // specular_texture_index - no specular texture
+	};
+	
+	Material textured_material = {
+		glm::vec3(0.0f, 0.0f, 0.0f),  // ambient - slight blue tint
+		glm::vec3(1.0f, 1.0f, 1.0f),    // diffuse - blue-ish
+		glm::vec3(0.0f, 0.0f, 0.0f),    // specular - very reflective
+		0.0f,                         // specular_highlights - very shiny
+		UINT32_MAX, // ambient_texture_index - use second texture if available
+		0,                              // diffuse_texture_index - use first texture
+		UINT32_MAX                      // specular_texture_index - no specular texture
+	};
+	
+	materials.push_back(default_material);
+	materials.push_back(textured_material);
+
+	geometry_batcher->CreateBuffers(main_command_buffer, device->vk_graphics_queue);
 }
 
 vk::VertexInputBindingDescription GetVertexInputBindingDescription()
@@ -66,7 +107,7 @@ vk::VertexInputBindingDescription GetVertexInputBindingDescription()
 std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescriptions()
 {
 	std::vector<vk::VertexInputAttributeDescription> attribute_descriptions;
-	attribute_descriptions.reserve(2);
+	attribute_descriptions.reserve(3);
 	// Position attribute
 	attribute_descriptions.push_back(
 		vk::VertexInputAttributeDescription().setBinding(0).setLocation(0).setFormat(vk::Format::eR32G32B32Sfloat).setOffset(0));

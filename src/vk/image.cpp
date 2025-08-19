@@ -9,8 +9,7 @@
 namespace nft::vulkan
 {
 
-Image::Image(Device* device):
-	device(device), width(0), height(0), channels(0), pixels(nullptr)
+Image::Image(Device* device): device(device), width(0), height(0), channels(0), pixels(nullptr)
 {
 	if (!device)
 		NFT_ERROR(VKFatal, "Device is null!");
@@ -92,16 +91,24 @@ Image& Image::operator=(Image&& other) noexcept
 	return *this;
 }
 
-void Image::Init(vk::ImageCreateInfo	 vk_image_info,
-				 vk::MemoryPropertyFlags memory_properites,
-				 vk::CommandBuffer		 command_buffer,
-				 vk::Queue				 queue)
+void Image::SetDevice(Device* device)
 {
 	if (!device)
 		NFT_ERROR(VKFatal, "Device is null!");
+	this->device = device;
+}
 
-	this->width	 = vk_image_info.extent.width;
-	this->height = vk_image_info.extent.height;
+void Image::Init(vk::Image vk_image, vk::ImageCreateInfo vk_image_info)
+{
+	if (!device)
+		NFT_ERROR(VKFatal, "Device is null!");
+	if (!vk_image)
+		NFT_ERROR(VKFatal, "Vulkan image handle is null!");
+	this->vk_image = vk_image;
+	
+	this->vk_image_info = vk_image_info;
+	this->width			= vk_image_info.extent.width;
+	this->height		= vk_image_info.extent.height;
 	if (width <= 0 || height <= 0)
 		NFT_ERROR(VKFatal, "Width and height must be greater than zero!");
 
@@ -110,7 +117,48 @@ void Image::Init(vk::ImageCreateInfo	 vk_image_info,
 		NFT_ERROR(VKFatal, "Invalid image tiling specified!");
 
 	this->usage = vk_image_info.usage;
-	SetupCommands(command_buffer, queue);
+
+	if (vk_subresource_range == vk::ImageSubresourceRange())
+		vk_subresource_range = vk::ImageSubresourceRange()
+								   .setAspectMask(vk::ImageAspectFlagBits::eColor)
+								   .setBaseMipLevel(0)
+								   .setLevelCount(1)
+								   .setBaseArrayLayer(0)
+								   .setLayerCount(1);
+
+	if (vk_subresource_layers == vk::ImageSubresourceLayers())
+		vk_subresource_layers = vk::ImageSubresourceLayers()
+									.setAspectMask(vk::ImageAspectFlagBits::eColor)
+									.setMipLevel(0)
+									.setBaseArrayLayer(0)
+									.setLayerCount(1);
+
+	image_created	  = true;
+	image_initialized = true;
+}
+
+void Image::Init(vk::ImageCreateInfo vk_image_info, vk::MemoryPropertyFlags memory_properties)
+{
+	if (!device)
+		NFT_ERROR(VKFatal, "Device is null!");
+
+	this->vk_image_info = vk_image_info;
+	this->width			= vk_image_info.extent.width;
+	this->height		= vk_image_info.extent.height;
+	if (width <= 0 || height <= 0)
+		NFT_ERROR(VKFatal, "Width and height must be greater than zero!");
+
+	this->tiling = vk_image_info.tiling;
+	if (tiling != vk::ImageTiling::eOptimal && tiling != vk::ImageTiling::eLinear)
+		NFT_ERROR(VKFatal, "Invalid image tiling specified!");
+
+	this->usage = vk_image_info.usage;
+
+	if (vk_image_info.mipLevels < 1)
+		vk_image_info.mipLevels = 1;	// Ensure at least one mip level
+
+	if (vk_image_info.arrayLayers < 1)
+		vk_image_info.arrayLayers = 1;	  // Ensure at least one array layer
 
 	try
 	{
@@ -121,24 +169,57 @@ void Image::Init(vk::ImageCreateInfo	 vk_image_info,
 		NFT_ERROR(VKFatal, std::format("Failed To Create Image:\n{}", err.what()));
 	}
 
-	vk::MemoryRequirements memory_requirements = device->vk_device.getImageMemoryRequirements(vk_image);
+	if (vk_subresource_range == vk::ImageSubresourceRange())
+		vk_subresource_range = vk::ImageSubresourceRange()
+								   .setAspectMask(vk::ImageAspectFlagBits::eColor)
+								   .setBaseMipLevel(0)
+								   .setLevelCount(1)
+								   .setBaseArrayLayer(0)
+								   .setLayerCount(1);
 
-	vk::MemoryAllocateInfo memory_allocate_info =
+	if (vk_subresource_layers == vk::ImageSubresourceLayers())
+		vk_subresource_layers = vk::ImageSubresourceLayers()
+									.setAspectMask(vk::ImageAspectFlagBits::eColor)
+									.setMipLevel(0)
+									.setBaseArrayLayer(0)
+									.setLayerCount(1);
+
+	image_initialized = true;
+
+	if (memory_properties != vk::MemoryPropertyFlagBits())
+		InitMemory(memory_properties);
+	else
+		image_created = true;
+}
+
+void Image::Init(vk::ImageCreateInfo	 vk_image_info,
+				 vk::MemoryPropertyFlags memory_properties,
+				 vk::CommandBuffer		 command_buffer,
+				 vk::Queue				 queue)
+{
+	Init(vk_image_info, memory_properties);
+	SetupCommands(command_buffer, queue);
+}
+
+void Image::InitMemory(vk::MemoryPropertyFlags memory_properties)
+{
+
+	vk_memory_requirements = device->vk_device.getImageMemoryRequirements(vk_image);
+
+	vk_memory_allocate_info =
 		vk::MemoryAllocateInfo()
-			.setAllocationSize(memory_requirements.size)
-			.setMemoryTypeIndex(device->buffer_manager->FindMemoryType(memory_requirements.memoryTypeBits, memory_properites));
-
+			.setAllocationSize(vk_memory_requirements.size)
+			.setMemoryTypeIndex(device->buffer_manager->FindMemoryType(vk_memory_requirements.memoryTypeBits, memory_properties));
 	try
 	{
-		vk_memory = device->vk_device.allocateMemory(memory_allocate_info);
+		vk_memory = device->vk_device.allocateMemory(vk_memory_allocate_info);
 		device->vk_device.bindImageMemory(vk_image, vk_memory, 0);
 	}
 	catch (const vk::SystemError& err)
 	{
 		NFT_ERROR(VKFatal, std::format("Failed To Allocate Image Memory:\n{}", err.what()));
 	}
-
-	image_initialized = true;
+	memory_bound = true;
 }
 
 void Image::SetupCommands(vk::CommandBuffer command_buffer, vk::Queue queue)
@@ -183,7 +264,6 @@ void Image::UploadPixelData(const void* pixels, size_t size, vk::ImageLayout fin
 	TransistionLayout(vk::ImageLayout::eTransferDstOptimal, final_layout);
 
 	// Cleanup staging buffer
-	device->vk_device.freeMemory(staging_buffer->vk_memory);
 	device->buffer_manager->DestroyBuffer(staging_buffer);
 
 	image_created = true;
@@ -198,13 +278,13 @@ void Image::AllocateDescriptorSet()
 		NFT_ERROR(VKFatal, "Descriptor set layout is null!");
 	if (!descriptor_pool)
 		NFT_ERROR(VKFatal, "Descriptor pool is null!");
-	vk::DescriptorSetAllocateInfo alloc_info = vk::DescriptorSetAllocateInfo()
-												   .setDescriptorPool(descriptor_pool->vk_descriptor_pool)
-												   .setDescriptorSetCount(1)
-												   .setPSetLayouts(&descriptor_set_layout->vk_descriptor_set_layout);
+	vk_descriptor_set_alloc_info = vk::DescriptorSetAllocateInfo()
+									   .setDescriptorPool(descriptor_pool->vk_descriptor_pool)
+									   .setDescriptorSetCount(1)
+									   .setPSetLayouts(&descriptor_set_layout->vk_descriptor_set_layout);
 	try
 	{
-		vk_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info)[0];
+		vk_descriptor_set = device->vk_device.allocateDescriptorSets(vk_descriptor_set_alloc_info)[0];
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -219,20 +299,13 @@ void Image::TransistionLayout(vk::ImageLayout old_layout, vk::ImageLayout new_la
 
 	commands::StartJob(vk_command_buffer, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-	vk::ImageSubresourceRange subresource_range = vk::ImageSubresourceRange()
-													  .setAspectMask(vk::ImageAspectFlagBits::eColor)
-													  .setBaseMipLevel(0)
-													  .setLevelCount(1)
-													  .setBaseArrayLayer(0)
-													  .setLayerCount(1);
-
 	vk::ImageMemoryBarrier image_memory_barrier = vk::ImageMemoryBarrier()
 													  .setOldLayout(old_layout)
 													  .setNewLayout(new_layout)
 													  .setSrcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 													  .setDstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
 													  .setImage(vk_image)
-													  .setSubresourceRange(subresource_range);
+													  .setSubresourceRange(vk_subresource_range);
 
 	vk::PipelineStageFlags src_stage;
 	vk::PipelineStageFlags dst_stage;
@@ -263,17 +336,11 @@ void Image::CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width
 {
 	commands::StartJob(vk_command_buffer, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-	vk::ImageSubresourceLayers subresource_layers = vk::ImageSubresourceLayers()
-														.setAspectMask(vk::ImageAspectFlagBits::eColor)
-														.setMipLevel(0)
-														.setBaseArrayLayer(0)
-														.setLayerCount(1);
-
 	vk::BufferImageCopy buffer_image_copy = vk::BufferImageCopy()
 												.setBufferOffset(0)
 												.setBufferRowLength(0)
 												.setBufferImageHeight(0)
-												.setImageSubresource(subresource_layers)
+												.setImageSubresource(vk_subresource_layers)
 												.setImageOffset(vk::Offset3D(0, 0, 0))
 												.setImageExtent(vk::Extent3D(width, height, 1));
 
@@ -284,28 +351,22 @@ void Image::CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width
 
 void Image::CreateImageView(vk::Format format)
 {
-	if (!image_created)
-		NFT_ERROR(VKFatal, "Image is not created! Call UploadPixelData() before creating an image view.");
+	if (!image_initialized)
+		NFT_ERROR(VKFatal, "Image is not initialized! Call Init() before creating an image view.");
 	if (image_view_created)
 		NFT_ERROR(VKFatal, "Image view is already created! Call Cleanup() before creating a new image view.");
 
-	vk::ImageSubresourceRange subresource_range = vk::ImageSubresourceRange()
-													  .setAspectMask(vk::ImageAspectFlagBits::eColor)
-													  .setBaseMipLevel(0)
-													  .setLevelCount(1)
-													  .setBaseArrayLayer(0)
-													  .setLayerCount(1);
-
-	vk::ImageViewCreateInfo image_view_info = vk::ImageViewCreateInfo()
-												  .setFlags(vk::ImageViewCreateFlags())
-												  .setImage(vk_image)
-												  .setViewType(vk::ImageViewType::e2D)
-												  .setFormat(format)
-												  .setComponents(vk::ComponentMapping())
-												  .setSubresourceRange(subresource_range);
+	vk_image_view_info = vk::ImageViewCreateInfo()
+							 .setFlags(vk::ImageViewCreateFlags())
+							 .setImage(vk_image)
+							 .setViewType(vk::ImageViewType::e2D)
+							 .setFormat(format)
+							 .setComponents(vk::ComponentMapping())
+							 .setSubresourceRange(vk_subresource_range);
 	try
 	{
-		vk_image_view	   = device->vk_device.createImageView(image_view_info);
+		vk_image_view	   = device->vk_device.createImageView(vk_image_view_info);
+		this->format	   = format;	// Store the format for later use
 		image_view_created = true;
 	}
 	catch (const vk::SystemError& err)
@@ -323,6 +384,13 @@ void Image::Bind(vk::CommandBuffer	   command_buffer,
 		NFT_ERROR(VKFatal, "Descriptor set is not created! Derived classes are responsible for creating descriptor_sets.");
 
 	command_buffer.bindDescriptorSets(bind_point, pipeline_layout, set_index, vk_descriptor_set, nullptr);
+}
+
+Texture::~Texture()
+{
+	device->vk_device.destroySampler(vk_sampler);
+	vk_sampler		= VK_NULL_HANDLE;
+	sampler_created = false;
 }
 
 void Texture::LoadFile(std::string file_path)
@@ -349,7 +417,6 @@ void Texture::LoadFile(std::string file_path)
 		 vk::MemoryPropertyFlagBits::eDeviceLocal,
 		 vk_command_buffer,
 		 vk_queue);
-
 
 	UploadPixelData(pixels, width * height * 4, vk::ImageLayout::eShaderReadOnlyOptimal);
 }
@@ -400,7 +467,6 @@ void Texture::CreateDescriptorSet(vk::DescriptorSetLayout external_layout, vk::D
 												   .setDescriptorSetCount(1)
 												   .setPSetLayouts(&external_layout);
 
-
 	try
 	{
 		vk_descriptor_set = device->vk_device.allocateDescriptorSets(alloc_info)[0];
@@ -409,7 +475,6 @@ void Texture::CreateDescriptorSet(vk::DescriptorSetLayout external_layout, vk::D
 	{
 		NFT_ERROR(VKFatal, std::format("Failed To Allocate Texture Descriptor Set:\n{}", err.what()));
 	}
-
 
 	vk::DescriptorImageInfo image_info = vk::DescriptorImageInfo()
 											 .setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
@@ -435,6 +500,21 @@ void Texture::Use(vk::CommandBuffer		command_buffer,
 	if (!descriptor_set_created)
 		NFT_ERROR(VKFatal, "Descriptor set is not created! Call CreateDescriptorSet() before using the texture.");
 	Bind(command_buffer, bind_point, pipeline_layout, set_index);
+}
+
+vk::Format
+	FindFormat(Device* device, const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
+{
+	for (const auto& format : candidates)
+	{
+		vk::FormatProperties props = device->GetPhysicalDevice().getFormatProperties(format);
+		if ((tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features) ||
+			(tiling == vk::ImageTiling::eOptimal && (props.optimalTilingFeatures & features) == features))
+		{
+			return format;
+		}
+	}
+	return vk::Format::eUndefined;	  // Not found
 }
 
 }	 // namespace nft::vulkan

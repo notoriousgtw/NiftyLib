@@ -1,6 +1,7 @@
 #include "vk/util.h"
 
 #include "vk/handler.h"
+#include "vk/geometry.h"  // For MaterialPushConstants
 
 namespace nft::vulkan
 {
@@ -55,8 +56,21 @@ void RasterizationStage::Init()
 								.setPolygonMode(vk::PolygonMode::eFill)
 								.setLineWidth(1.0f)
 								.setCullMode(vk::CullModeFlagBits::eNone)
-								.setFrontFace(vk::FrontFace::eClockwise)
+								.setFrontFace(vk::FrontFace::eCounterClockwise)
 								.setDepthBiasEnable(VK_FALSE);
+}
+
+void DepthStencilStage::Init()
+{
+	vk_depth_stencil_info = vk::PipelineDepthStencilStateCreateInfo()
+								.setFlags(vk::PipelineDepthStencilStateCreateFlags())
+								.setDepthTestEnable(VK_TRUE)
+								.setDepthWriteEnable(VK_TRUE)
+								.setDepthCompareOp(vk::CompareOp::eLess)
+								.setDepthBoundsTestEnable(VK_FALSE)
+								.setMinDepthBounds(0.0f)
+								.setMaxDepthBounds(1.0f)
+								.setStencilTestEnable(VK_FALSE);
 }
 
 void MultisampleStage::Init()
@@ -180,15 +194,18 @@ void DescriptorPool::Cleanup()
 
 void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts)
 {
+	// Add push constant range for material data
+	vk::PushConstantRange material_push_constant_range = vk::PushConstantRange()
+														 .setOffset(0)
+														 .setSize(sizeof(MaterialPushConstants))
+														 .setStageFlags(vk::ShaderStageFlagBits::eFragment);
+
 	vk_pipeline_layout_info = vk::PipelineLayoutCreateInfo()
 								  .setFlags(vk::PipelineLayoutCreateFlags())
 								  .setSetLayoutCount(descriptor_set_layouts.size())
-								  .setPSetLayouts(descriptor_set_layouts.data());
-
-	// vk::PushConstantRange push_constant_range =
-	//	vk::PushConstantRange().setOffset(0).setSize(sizeof(glm::mat4)).setStageFlags(vk::ShaderStageFlagBits::eVertex);
-
-	// vk_pipeline_layout_info.setPushConstantRangeCount(1).setPPushConstantRanges(&push_constant_range);
+								  .setPSetLayouts(descriptor_set_layouts.data())
+								  .setPushConstantRangeCount(1)
+								  .setPPushConstantRanges(&material_push_constant_range);
 
 	try
 	{
@@ -209,11 +226,11 @@ void PipelineLayout::Cleanup()
 	}
 }
 
-void RenderPass::Init(vk::Format format)
+void RenderPass::Init(vk::Format color_format, vk::Format depth_format)
 {
 	color_attachment = vk::AttachmentDescription()
 						   .setFlags(vk::AttachmentDescriptionFlags())
-						   .setFormat(format)
+						   .setFormat(color_format)
 						   .setSamples(vk::SampleCountFlagBits::e1)
 						   .setLoadOp(vk::AttachmentLoadOp::eClear)
 						   .setStoreOp(vk::AttachmentStoreOp::eStore)
@@ -224,6 +241,22 @@ void RenderPass::Init(vk::Format format)
 
 	color_attachment_ref = vk::AttachmentReference().setAttachment(0).setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
+	depth_attachment = vk::AttachmentDescription()
+							.setFlags(vk::AttachmentDescriptionFlags())
+							.setFormat(depth_format)
+							.setSamples(vk::SampleCountFlagBits::e1)
+							.setLoadOp(vk::AttachmentLoadOp::eClear)
+							.setStoreOp(vk::AttachmentStoreOp::eDontCare)
+							.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+							.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+							.setInitialLayout(vk::ImageLayout::eUndefined)
+						   .setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+	depth_attachment_ref = vk::AttachmentReference()
+									.setAttachment(1).setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+	std::vector<vk::AttachmentDescription> attachments = { color_attachment, depth_attachment };
+
 	vk_subpass = vk::SubpassDescription()
 					 .setFlags(vk::SubpassDescriptionFlags())
 					 .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
@@ -232,14 +265,14 @@ void RenderPass::Init(vk::Format format)
 					 .setColorAttachmentCount(1)
 					 .setPColorAttachments(&color_attachment_ref)
 					 .setPResolveAttachments(nullptr)
-					 .setPDepthStencilAttachment(nullptr)
+					 .setPDepthStencilAttachment(&depth_attachment_ref)
 					 .setPreserveAttachmentCount(0)
 					 .setPPreserveAttachments(nullptr);
 
 	vk_render_pass_info = vk::RenderPassCreateInfo()
 							  .setFlags(vk::RenderPassCreateFlags())
-							  .setAttachmentCount(1)
-							  .setPAttachments(&color_attachment)
+							  .setAttachmentCount(attachments.size())
+							  .setPAttachments(attachments.data())
 							  .setSubpassCount(1)
 							  .setPSubpasses(&vk_subpass)
 							  .setDependencyCount(0)

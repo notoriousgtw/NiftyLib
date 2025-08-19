@@ -241,7 +241,7 @@ void Device::CreateDevice()
     }
 
     // Setup device features (none required currently)
-    device_features = vk::PhysicalDeviceFeatures();
+    device_features = vk::PhysicalDeviceFeatures().setSamplerAnisotropy(VK_TRUE);
 
     // Create device info structure
     vk_device_info = vk::DeviceCreateInfo()

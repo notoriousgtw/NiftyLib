@@ -43,11 +43,13 @@ class Surface
 	struct Frame
 	{
 		// swapchain
-		vk::Image				  image			= VK_NULL_HANDLE;
-		vk::ImageView			  vk_image_view = VK_NULL_HANDLE;
-		vk::ImageViewCreateInfo	  vk_image_view_info;
+		Image swapchain_image;
+		Image depth_buffer;
+
 		vk::Framebuffer			  vk_frame_buffer = VK_NULL_HANDLE;
 		vk::FramebufferCreateInfo vk_frame_buffer_info;
+		uint32_t				  width;
+		uint32_t				  height;
 
 		vk::CommandBuffer vk_command_buffer = VK_NULL_HANDLE;
 
@@ -65,12 +67,14 @@ class Surface
 		void*				   object_transform_ptr	   = nullptr;
 
 		// resource descriptors
-		vk::DescriptorSet vk_descriptor_set = VK_NULL_HANDLE;
+		vk::DescriptorSet vk_descriptor_set = VK_NULL_HANDLE;		// Frame data (camera + transforms)
 
 		void Init(Surface* surface, Scene* scene);
 		void MakeDescriptorResources();
 		void AllocateDescriptorResources();
+		void MakeDepthResources();
 		void Prepare();
+		void Cleanup();
 
 	  private:
 		Surface* surface;
@@ -100,7 +104,7 @@ class Surface
 
 	void PrepareScene(vk::CommandBuffer command_buffer);
 	void Render();
-	void RecordDrawCommands(Frame& frame, uint32_t image_index);
+	 void RecordDrawCommands(Frame& frame, uint32_t image_index);
 
 	//=========================================================================
 	// CREATION METHODS
@@ -108,6 +112,7 @@ class Surface
 	void CreateSwapchain();
 	void RecreateSwapchain();
 	void CreatePipeline();
+	void CreateTextureDescriptorSet();  // Create descriptor set for material textures
 	void CreateFrameBuffers();
 	void CreateCommandPool();
 	void CreateFrameCommandBuffers();
@@ -201,6 +206,7 @@ class Surface
 	vk::Extent2D			   extent	   = vk::Extent2D(0, 0);
 	uint32_t				   image_count = 0;
 	vk::SurfaceFormatKHR	   format;
+	vk::Format				   depth_format;
 	vk::PresentModeKHR		   present_mode;
 	vk::SwapchainCreateInfoKHR vk_swapchain_info;
 
@@ -216,23 +222,26 @@ class Surface
 	InputAssemblyStage					 input_assembly_stage;
 	ViewportStage						 viewport_stage;
 	RasterizationStage					 rasterization_stage;
+	DepthStencilStage					 depth_stencil_stage;
 	MultisampleStage					 multisample_stage;
 	ColorBlendStage						 color_blend_stage;
 	DescriptorSetLayout					 frame_set_layout;
-	DescriptorSetLayout					 mesh_set_layout;
+	DescriptorSetLayout					 texture_set_layout;      // Renamed from mesh_set_layout
 	std::vector<vk::DescriptorSetLayout> vk_descriptor_set_layouts;
 	DescriptorPool						 frame_descriptor_pool;
-	DescriptorPool						 mesh_descriptor_pool;
+	DescriptorPool						 texture_descriptor_pool;  // Renamed from mesh_descriptor_pool
 	PipelineLayout						 pipeline_layout;
 	RenderPass							 render_pass;
 	vk::GraphicsPipelineCreateInfo		 vk_pipeline_info;
 
 	// Rendering state
-	size_t				   max_frames_in_flight = 2;
-	size_t				   frame_index			= 0;
+	size_t				   max_frames_in_flight;
+	size_t				   frame_index = 0;
 	std::unique_ptr<Scene> scene;
+	vk::DescriptorSet	   texture_descriptor_set = VK_NULL_HANDLE; // Global texture descriptor set
 
 	vk::ClearValue clear_color;
+	vk::ClearValue clear_depth;
 
 	// Cleanup state
 	bool is_cleaned_up = false;	   // Prevents double cleanup
@@ -240,7 +249,6 @@ class Surface
 	//=========================================================================
 	// PRIVATE HELPER METHODS
 	//=========================================================================
-
 
 	friend struct ShaderStage;
 	friend struct VertexShaderStage;

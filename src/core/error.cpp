@@ -21,6 +21,7 @@ void ErrorHandler::Init(App* app)
 	NFT_REGISTER_ERROR(VKWarning);
 	NFT_REGISTER_ERROR(VKError);
 	NFT_REGISTER_ERROR(VKFatal);
+	NFT_REGISTER_ERROR(FileError);
 	NFT_REGISTER_ERROR(ColorEncodingError);
 	app->GetLogger()->Debug("System Error Codes Successfully Registered!", "ErrorHandler");
 }

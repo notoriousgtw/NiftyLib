@@ -164,6 +164,11 @@ struct VKFatal: public FatalError<VKFatal>
 	VKFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
 };
 
+struct FileError: public Error<FileError>
+{
+	FileError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+};
+
 struct ColorEncodingError: public Error<ColorEncodingError>
 {
 	ColorEncodingError(std::string message, std::string function_name = ""):
