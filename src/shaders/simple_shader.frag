@@ -45,8 +45,8 @@ void main() {
     vec3 light_pos = vec3(2.0, 4.0, 2.0);
     vec3 light_color = vec3(1.0, 1.0, 1.0);
     
-    vec3 light_dir = normalize(light_pos - frag_world_pos);
     vec3 normal = normalize(frag_normal);
+    vec3 light_dir = normalize(light_pos - frag_world_pos);
     
     // Ambient component
     vec3 ambient = ambient_color;

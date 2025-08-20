@@ -68,10 +68,10 @@ GeometryBatcher::GeometryBatcher(Device* device): device(device)
 
 void GeometryBatcher::AddGeometry(const IMesh* mesh)
 {
-	// Calculate vertex count - each vertex has 9 floats (x, y, z, r, g, b, a, u, v)
-	size_t vertex_count = mesh->vertices->size() / 9;
+	// Calculate vertex count - each vertex has 12 floats (x, y, z, r, g, b, a, u, v)
+	size_t vertex_count = mesh->vertices->size() / 12;
 	// Calculate current vertex offset in the batched buffer (number of vertices, not bytes)
-	size_t vertex_offset = vertex_data.size() / 9;
+	size_t vertex_offset = vertex_data.size() / 12;
 
 	size_t index_count	= 0;	// Default to 0 if no indices are present
 	size_t index_offset = 0;	// Default to 0 if no indices are present

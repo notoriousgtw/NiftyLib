@@ -12,9 +12,25 @@ void Window::Init()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+	// glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 	window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
-	if (window == NULL) NFT_ERROR(GLFWFatal, std::format("Failed to create window: \"{}\"", title));
+	if (window == NULL)
+		NFT_ERROR(GLFWFatal, std::format("Failed to create window: \"{}\"", title));
 	vulkan::VulkanHandler::AddSurface(window);
+	glfwSetWindowUserPointer(window, this);
+
 }
+
+void Window::PollEvents() const
+{
+	glfwPollEvents();
+
+}
+
+void Window::HandleKeyEvent(int key, int scancode, int action, int mods)
+{
+
+}
+
+
 }	 // namespace nft::GUI
