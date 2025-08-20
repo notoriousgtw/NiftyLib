@@ -1,10 +1,12 @@
 #pragma once
 
 #include "core/log.h"
+#include "core/event.h"
 #include "gui/window.h"
 #include "vk/scene.h"
 
 #include <set>
+#include <vector>
 
 namespace nft
 {

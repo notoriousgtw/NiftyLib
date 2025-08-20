@@ -400,7 +400,7 @@ void Texture::LoadFile(std::string file_path)
 
 	pixels = stbi_load(file_path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 	if (!pixels)
-		NFT_ERROR(VKFatal, "Failed To Load Image File: {}", file_path);
+		NFT_ERROR(VKFatal, "Failed To Load Image File: " + file_path);
 
 	Init(vk::ImageCreateInfo()
 			 .setFlags(vk::ImageCreateFlagBits())

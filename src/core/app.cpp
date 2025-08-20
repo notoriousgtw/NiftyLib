@@ -22,6 +22,7 @@ App::App(std::string name)
 
 	ErrorHandler::Init(this);
 	// EventHandler::Init(this);
+	events.push_back(std::make_unique<KeyPressEvent>());
 }
 
 void App::Init()
@@ -72,7 +73,6 @@ App::~App()
 
 void App::BeginFrameCore()
 {
-	//
 }
 
 void App::EndFrameCore() {}

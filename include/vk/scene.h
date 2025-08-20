@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/event.h"
+
 #include "vk/common.h"
 #include "vk/geometry.h"
 #include "vk/image.h"
@@ -13,15 +15,19 @@ struct ObjectData
 	uint32_t  material_index = 0;  // Index of the material in the materials vector
 };
 
-class Scene
+class Scene : Observer
 {
   public:
 	// Constructor
 	Scene(Device* device, vk::CommandBuffer main_command_buffer);
 	// Destructor
 	~Scene() = default;
+
+	void Update(Event* source) override {}
+
 	// Add an object to the scene
 	void AddObject(const ObjectData& object) { objects.push_back(object); }
+	
 	// Get all objects in the scene
 	const std::vector<ObjectData>& GetObjects() const { return objects; }
 

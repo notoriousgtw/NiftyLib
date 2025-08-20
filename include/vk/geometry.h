@@ -9,13 +9,13 @@ namespace nft::vulkan
 
 struct Material
 {
-	glm::vec3 ambient;				  // Ambient color
-	glm::vec3 diffuse;				  // Diffuse color
-	glm::vec3 specular;				  // Specular color
-	float	  specular_highlights;	  // Specular highlights intensity
-	uint32_t  ambient_texture_index  = UINT32_MAX;   // Index into texture array (UINT32_MAX = no texture)
-	uint32_t  diffuse_texture_index  = UINT32_MAX;   // Index into texture array (UINT32_MAX = no texture)  
-	uint32_t  specular_texture_index = UINT32_MAX;   // Index into texture array (UINT32_MAX = no texture)
+	glm::vec3 ambient;								  // Ambient color
+	glm::vec3 diffuse;								  // Diffuse color
+	glm::vec3 specular;								  // Specular color
+	float	  specular_highlights;					  // Specular highlights intensity
+	uint32_t  ambient_texture_index	 = UINT32_MAX;	  // Index into texture array (UINT32_MAX = no texture)
+	uint32_t  diffuse_texture_index	 = UINT32_MAX;	  // Index into texture array (UINT32_MAX = no texture)
+	uint32_t  specular_texture_index = UINT32_MAX;	  // Index into texture array (UINT32_MAX = no texture)
 };
 
 // Push constant structure for per-object material data (must be <= 128 bytes)
@@ -24,11 +24,11 @@ struct MaterialPushConstants
 	alignas(16) glm::vec3 ambient;
 	alignas(16) glm::vec3 diffuse;
 	alignas(16) glm::vec3 specular;
-	alignas(4)  float specular_highlights;
-	alignas(4)  uint32_t diffuse_texture_index;     // Index into texture array
-	alignas(4)  uint32_t ambient_texture_index;     // Index into texture array  
-	alignas(4)  uint32_t specular_texture_index;    // Index into texture array
-	alignas(4)  uint32_t padding;                   // Ensure proper alignment
+	alignas(4) float specular_highlights;
+	alignas(4) uint32_t diffuse_texture_index;	   // Index into texture array
+	alignas(4) uint32_t ambient_texture_index;	   // Index into texture array
+	alignas(4) uint32_t specular_texture_index;	   // Index into texture array
+	alignas(4) uint32_t padding;				   // Ensure proper alignment
 };
 
 class IMesh
@@ -39,6 +39,7 @@ class IMesh
 		float x, y, z;		 // Position
 		float r, g, b, a;	 // Color
 		float u, v;			 // Texture Coordinate
+		float nx, ny, nz;	 // Normal
 	};
 
 	IMesh(): vertices(std::make_unique<std::vector<float>>()), indices(std::make_unique<std::vector<uint32_t>>()) {}
@@ -91,7 +92,7 @@ class GeometryBatcher
 	GeometryBatcher(Device* device);
 	~GeometryBatcher() = default;
 
-	void AddGeometry(const IMesh* mesh);
+	void	AddGeometry(const IMesh* mesh);
 	void	CreateBuffers(vk::CommandBuffer command_buffer, vk::Queue queue);
 	Buffer* GetVertexBuffer() const { return vertex_buffer; }
 

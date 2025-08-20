@@ -7,8 +7,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/app.h"
-#include "core/error.h"
+#include <GLFW/glfw3.h>
+
+//#include "core/app.h"
+//#include "core/error.h"
 
 namespace nft
 {
@@ -18,7 +20,7 @@ class Event;
 class Observer
 {
   public:
-	virtual ~Observer()	  = default;
+	virtual ~Observer()				   = default;
 	virtual void Update(Event* source) = 0;
 };
 
@@ -39,6 +41,12 @@ class Event
 
   private:
 	std::vector<std::shared_ptr<Observer>> observers;
+};
+
+class KeyPressEvent: public Event
+{
+  public:
+	bool key_states[GLFW_KEY_LAST + 1];
 };
 
 }	 // namespace nft

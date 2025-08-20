@@ -183,6 +183,13 @@ void ObjLoader::ReadCorner(const std::string& vertex_description)
 		texture_coord = vt.at(std::stol(v_vt_vn[1]) - 1);
 	vertices->push_back(texture_coord.x);
 	vertices->push_back(texture_coord.y);
+
+	// Normal
+	glm::vec3				 normal = v.at(std::stol(v_vt_vn[2]) - 1);
+	vertices->push_back(normal.x);
+	vertices->push_back(normal.y);
+	vertices->push_back(normal.z);
+
 }
 
 }	 // namespace nft::parse
