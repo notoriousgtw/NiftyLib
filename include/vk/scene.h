@@ -46,7 +46,7 @@ class Scene: Observer
 	glm::mat4 camera_transforms = glm::mat4(1.0f);	  // Camera transformation matrix
 
 	// Orbital camera variables
-	glm::vec3 orbit_target			 = glm::vec3(0.0f, 1.0f, 3.0f);	   // Point to orbit around
+	glm::vec3 orbit_target			 = glm::vec3(0.0f, 1.0f, -3.0f);	   // Point to orbit around
 	float	  orbit_distance		 = 5.0f;						   // Distance from target
 	float	  orbit_angle_horizontal = 0.0f;						   // Horizontal rotation angle
 	float	  orbit_angle_vertical	 = 0.0f;						   // Vertical rotation angle

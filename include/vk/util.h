@@ -60,7 +60,7 @@ namespace nft::vulkan
 	struct InputAssemblyStage: public PipelineStage
 	{
 		InputAssemblyStage(Device* device) : PipelineStage(device) {}
-		void Init();
+		void Init(vk::PrimitiveTopology topology, vk::Bool32 restart_enable = VK_FALSE);
 
 		vk::PipelineInputAssemblyStateCreateInfo vk_input_assembly_info;
 	};
@@ -69,7 +69,7 @@ namespace nft::vulkan
 	struct ViewportStage: public PipelineStage
 	{
 		ViewportStage(Device* device) : PipelineStage(device) {}
-		void Init(vk::Extent2D extent);
+		void Init(vk::Extent2D extent, glm::vec2 view_pos = { 0.0f, 0.0f }, glm::vec2 depth = {0.0f, 1.0f}, vk::Offset2D offset = { 0, 0 });
 
 		vk::Viewport						viewport;
 		vk::Rect2D							scissor;
@@ -156,7 +156,7 @@ namespace nft::vulkan
 	struct PipelineLayout
 	{
 		PipelineLayout(Device* device) : device(device) {}
-		void Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts);
+		void Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts, vk::PushConstantRange push_constant_range);
 		void Cleanup();
 
 		vk::PipelineLayout			 vk_pipeline_layout = VK_NULL_HANDLE;

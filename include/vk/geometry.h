@@ -109,5 +109,6 @@ class GeometryBatcher
 
 	friend class Scene;
 	friend class Surface;
+	friend class ObjectPicker;
 };
 }	 // namespace nft::vulkan

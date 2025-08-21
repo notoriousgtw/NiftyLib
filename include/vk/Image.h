@@ -92,6 +92,7 @@ class Image
 	void AllocateDescriptorSet();
 
 	friend class Scene;
+	friend class ObjectPicker;
 };
 
 class Texture: public Image
