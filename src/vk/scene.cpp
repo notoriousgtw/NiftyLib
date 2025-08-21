@@ -176,16 +176,8 @@ void Scene::Update(IEventBase* source)
 			}
 		}
 	}
-	// if (source->GetType() == EventType::KeyEvent)
-	//{
-	//	KeyEvent* key_event = static_cast<KeyEvent*>(source);
-	//	if (key_event->GetAction() == KeyAction::Press && key_event->GetKey() == KeyCode::F5)
-	//	{
-	//		// Reload the scene or perform any other action
-	//		app->GetLogger()->Debug("Reloading scene on F5 press", "VKScene");
-	//		// For now, just log it
-	//	}
-	// }
+	else if (source->GetCode() == Mouse)
+
 }
 
 vk::VertexInputBindingDescription GetVertexInputBindingDescription()

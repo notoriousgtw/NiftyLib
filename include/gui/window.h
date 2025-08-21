@@ -50,6 +50,7 @@ class Window
 	std::unique_ptr<EventHandler> event_handler;
 
 	static void KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods);
+	static void MouseButtonCallbackStatic(GLFWwindow* window, int button, int action, int mods);
 
 	void Init();
 	friend class Surface;

@@ -21,6 +21,7 @@ void Window::Init()
 
 	glfwSetWindowUserPointer(window, this);
 	glfwSetKeyCallback(window, KeyCallbackStatic);
+
 }
 
 void Window::PollEvents() const

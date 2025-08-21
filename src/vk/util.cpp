@@ -1,7 +1,7 @@
 #include "vk/util.h"
 
+#include "vk/geometry.h"	// For MaterialPushConstants
 #include "vk/handler.h"
-#include "vk/geometry.h"  // For MaterialPushConstants
 
 namespace nft::vulkan
 {
@@ -23,22 +23,23 @@ void VertexInputStage::Init()
 							   .setPVertexAttributeDescriptions(attribute_descriptions.data());
 }
 
-void InputAssemblyStage::Init()
+void InputAssemblyStage::Init(vk::PrimitiveTopology topology, vk::Bool32 restart_enable)
 {
 	vk_input_assembly_info = vk::PipelineInputAssemblyStateCreateInfo()
 								 .setFlags(vk::PipelineInputAssemblyStateCreateFlags())
-								 .setTopology(vk::PrimitiveTopology::eTriangleList);
+								 .setTopology(topology)
+								 .setPrimitiveRestartEnable(restart_enable);
 }
 
-void ViewportStage::Init(vk::Extent2D extent)
+void ViewportStage::Init(vk::Extent2D extent, glm::vec2 pos, glm::vec2 depth, vk::Offset2D offset)
 {
-	viewport.setX(0.0f)
-		.setY(0.0f)
+	viewport.setX(pos.x)
+		.setY(pos.y)
 		.setWidth(static_cast<float>(extent.width))
 		.setHeight(static_cast<float>(extent.height))
-		.setMinDepth(0.0f)
-		.setMaxDepth(1.0f);
-	scissor.setOffset({ 0, 0 }).setExtent(extent);
+		.setMinDepth(depth.x)
+		.setMaxDepth(depth.y);
+	scissor.setOffset(offset).setExtent(extent);
 	vk_viewport_state_info = vk::PipelineViewportStateCreateInfo()
 								 .setFlags(vk::PipelineViewportStateCreateFlags())
 								 .setViewportCount(1)
@@ -90,6 +91,7 @@ void ColorBlendStage::Init()
 	color_blend_attachment = vk::PipelineColorBlendAttachmentState().setBlendEnable(VK_FALSE).setColorWriteMask(
 		vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB |
 		vk::ColorComponentFlagBits::eA);
+
 	vk_color_blend_info = vk::PipelineColorBlendStateCreateInfo()
 							  .setFlags(vk::PipelineColorBlendStateCreateFlags())
 							  .setLogicOpEnable(VK_FALSE)
@@ -97,10 +99,15 @@ void ColorBlendStage::Init()
 							  .setAttachmentCount(1)
 							  .setPAttachments(&color_blend_attachment)
 							  .setBlendConstants({ 0.0f, 0.0f, 0.0f, 0.0f });
+
+    //color_blending = vk::PipelineColorBlendStateCreateInfo()
+    //    .setLogicOpEnable(VK_FALSE)
+    //    .setAttachmentCount(1)
+    //    .setPAttachments(&color_blend_attachment);
+
 }
 
-DescriptorSetLayout::DescriptorSetLayout(Surface* surface):
-	surface(surface), device(surface->device)
+DescriptorSetLayout::DescriptorSetLayout(Surface* surface): surface(surface), device(surface->device)
 {
 	if (!surface)
 		NFT_ERROR(VKFatal, "Surface Is Null!");
@@ -108,8 +115,7 @@ DescriptorSetLayout::DescriptorSetLayout(Surface* surface):
 		NFT_ERROR(VKFatal, "Device Is Null!");
 }
 
-DescriptorSetLayout::DescriptorSetLayout(Device* device):
-	surface(nullptr), device(device)
+DescriptorSetLayout::DescriptorSetLayout(Device* device): surface(nullptr), device(device)
 {
 	if (!device)
 		NFT_ERROR(VKFatal, "Device Is Null!");
@@ -137,8 +143,7 @@ void DescriptorSetLayout::Init(std::vector<Binding> bindings)
 										.setPBindings(vk_bindings.data());
 	try
 	{
-		vk_descriptor_set_layout =
-			device->vk_device.createDescriptorSetLayout(vk_descriptor_set_layout_info);
+		vk_descriptor_set_layout = device->vk_device.createDescriptorSetLayout(vk_descriptor_set_layout_info);
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -192,20 +197,14 @@ void DescriptorPool::Cleanup()
 	}
 }
 
-void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts)
+void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts, vk::PushConstantRange push_constant_range)
 {
-	// Add push constant range for material data
-	vk::PushConstantRange material_push_constant_range = vk::PushConstantRange()
-														 .setOffset(0)
-														 .setSize(sizeof(MaterialPushConstants))
-														 .setStageFlags(vk::ShaderStageFlagBits::eFragment);
-
 	vk_pipeline_layout_info = vk::PipelineLayoutCreateInfo()
 								  .setFlags(vk::PipelineLayoutCreateFlags())
 								  .setSetLayoutCount(descriptor_set_layouts.size())
 								  .setPSetLayouts(descriptor_set_layouts.data())
 								  .setPushConstantRangeCount(1)
-								  .setPPushConstantRanges(&material_push_constant_range);
+								  .setPPushConstantRanges(&push_constant_range);
 
 	try
 	{
@@ -242,18 +241,17 @@ void RenderPass::Init(vk::Format color_format, vk::Format depth_format)
 	color_attachment_ref = vk::AttachmentReference().setAttachment(0).setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
 	depth_attachment = vk::AttachmentDescription()
-							.setFlags(vk::AttachmentDescriptionFlags())
-							.setFormat(depth_format)
-							.setSamples(vk::SampleCountFlagBits::e1)
-							.setLoadOp(vk::AttachmentLoadOp::eClear)
-							.setStoreOp(vk::AttachmentStoreOp::eDontCare)
-							.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-							.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-							.setInitialLayout(vk::ImageLayout::eUndefined)
+						   .setFlags(vk::AttachmentDescriptionFlags())
+						   .setFormat(depth_format)
+						   .setSamples(vk::SampleCountFlagBits::e1)
+						   .setLoadOp(vk::AttachmentLoadOp::eClear)
+						   .setStoreOp(vk::AttachmentStoreOp::eDontCare)
+						   .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+						   .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+						   .setInitialLayout(vk::ImageLayout::eUndefined)
 						   .setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
-	depth_attachment_ref = vk::AttachmentReference()
-									.setAttachment(1).setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+	depth_attachment_ref = vk::AttachmentReference().setAttachment(1).setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
 	std::vector<vk::AttachmentDescription> attachments = { color_attachment, depth_attachment };
 
