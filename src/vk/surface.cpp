@@ -25,7 +25,7 @@ namespace nft::vulkan
 // CONSTRUCTOR & DESTRUCTOR
 //=============================================================================
 
-Surface::Surface(Instance* instance, Device* device, GLFWwindow* window):
+Surface::Surface(Instance* instance, Device* device, Window* window):
 	instance(instance),
 	device(device),
 	window(window),
@@ -61,6 +61,7 @@ Surface::Surface(Instance* instance, Device* device, GLFWwindow* window):
 
 	app = instance->GetApp();
 
+
 	Init();
 }
 
@@ -85,17 +86,17 @@ Surface::~Surface()
 
 void Surface::Init()
 {
-	app->GetLogger()->Debug(std::format("Creating Surface For Window: \"{}\"...", glfwGetWindowTitle(window)), "VKInit");
+	app->GetLogger()->Debug(std::format("Creating Surface For Window: \"{}\"...", glfwGetWindowTitle(window->GetGLFWWindow())), "VKInit");
 
 	// Create a Vulkan surface using GLFW
 	VkSurfaceKHR c_style_surface;
-	glfwCreateWindowSurface(instance->vk_instance, window, nullptr, &c_style_surface);
+	glfwCreateWindowSurface(instance->vk_instance, window->GetGLFWWindow(), nullptr, &c_style_surface);
 	vk_surface = c_style_surface;
 
-	app->GetLogger()->Debug(std::format("Surface For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(window)),
+	app->GetLogger()->Debug(std::format("Surface For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(window->GetGLFWWindow())),
 							"VKInit");
 	CreateCommandPool();
-	scene = std::make_unique<Scene>(device, vk_command_buffer);
+	scene = std::make_unique<Scene>(this, vk_command_buffer);
 	InitSwapchain();
 	CreatePipeline();
 	CreateFrameBuffers();
@@ -242,7 +243,7 @@ void Surface::CreateSwapchain()
 		depth_buffer.CreateImageView(depth_format);
 	}
 
-	app->GetLogger()->Debug(std::format("Swapchain For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(window)),
+	app->GetLogger()->Debug(std::format("Swapchain For Window: \"{}\" Created Successfully!", glfwGetWindowTitle(window->GetGLFWWindow())),
 							"VKInit");
 }
 
@@ -254,7 +255,7 @@ void Surface::RecreateSwapchain()
 
 	while (width == 0 || height == 0)
 	{
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(window->GetGLFWWindow(), &width, &height);
 		glfwWaitEvents();
 	}
 
@@ -530,6 +531,8 @@ void Surface::PrepareScene(vk::CommandBuffer command_buffer)
 		return;
 	}
 
+
+
 	vk::Buffer	 vertex_buffers[] = { scene->GetGeometryBatcher()->vertex_buffer->vk_buffer };
 	VkDeviceSize offsets[]		  = { 0 };	  // Start from the beginning of the buffer
 	command_buffer.bindVertexBuffers(0, 1, vertex_buffers, offsets);
@@ -565,7 +568,7 @@ void Surface::Render()
 	vk::CommandBuffer command_buffer = current_frame.vk_command_buffer;
 	command_buffer.reset(vk::CommandBufferResetFlags());
 
-	current_frame.Prepare();
+	current_frame.Prepare(scene->camera_transforms);
 	RecordDrawCommands(current_frame, image_index);
 
 	vk::PipelineStageFlags wait_stages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
@@ -1068,7 +1071,7 @@ void Surface::Frame::MakeDepthResources()
 	// vk_depth_buffer_view		= device->buffer_manager->CreateImageView(depth_buffer, vk::ImageViewType::e2D, depth_format);
 }
 
-void Surface::Frame::Prepare()
+void Surface::Frame::Prepare(glm::mat4 camera_transforms)
 {
 	if (!surface)
 		NFT_ERROR(VKFatal, "Surface pointer is null!");
@@ -1077,9 +1080,25 @@ void Surface::Frame::Prepare()
 	if (!camera_data_buffer)
 		NFT_ERROR(VKFatal, "Camera data buffer is not initialized!");
 
-	glm::vec3 eye	 = { 0.0f, 1.0f, 0.0f };
-	glm::vec3 center = { 1.0f, 1.0f, 0.0f };
-	glm::vec3 up	 = { 0.0f, 1.0f, 0.0f };
+
+
+	glm::vec3 eye	 = glm::vec3(camera_transforms[3]);
+
+	// Define a base center direction (e.g., looking forward)
+	glm::vec3 base_center_direction = glm::vec3(0.0f, 0.0f, -1.0f);	   // Looking down negative Z
+
+	// Extract the rotation part of the camera transform (upper-left 3x3 matrix)
+	glm::mat3 rotation_matrix = glm::mat3(camera_transforms);
+
+	// Apply the camera rotation to the base center direction
+	glm::vec3 rotated_direction = rotation_matrix * base_center_direction;
+
+	// Calculate the center point
+	glm::vec3 center = eye + rotated_direction;
+
+	// Use the up vector from the transform
+	glm::vec3 up = glm::normalize(glm::vec3(camera_transforms[1]));
+
 	camera_data.view = glm::lookAt(eye, center, up);
 
 	camera_data.proj = glm::perspective(glm::radians(45.0f),
@@ -1091,7 +1110,7 @@ void Surface::Frame::Prepare()
 	float aspect = static_cast<float>(surface->vk_swapchain_info.imageExtent.width) /
 				   static_cast<float>(surface->vk_swapchain_info.imageExtent.height);
 	camera_data.proj[1][1] *= -1;
-	camera_data.view_proj = camera_data.proj * camera_data.view;
+	camera_data.pos = eye;
 
 	std::memcpy(camera_data_ptr, &camera_data, sizeof(UniformBufferObject));
 
@@ -1166,4 +1185,507 @@ void Surface::Frame::Cleanup()
 	}
 }
 
-}	 // namespace nft::vulkan
+//=============================================================================
+// OBJECT PICKER IMPLEMENTATION
+//=============================================================================
+
+ObjectPicker::ObjectPicker(Device* device, vk::Extent2D extent)
+    : device(device), extent(extent),
+	pipeline(VK_NULL_HANDLE),
+	vk_command_pool(VK_NULL_HANDLE),
+	vk_command_buffer(VK_NULL_HANDLE),
+	vertex_input_stage(device),
+	input_assembly_stage(device),
+	viewport_stage(device),
+	rasterization_stage(device),
+	depth_stencil_stage(device),
+	multisample_stage(device),
+	color_blend_stage(device),
+	picking_set_layout(device),  // Keep instance pointer for surface context and debugging
+	picking_descriptor_pool(device),
+	pipeline_layout(device),
+	render_pass(device),
+{
+    Init();
+}
+
+ObjectPicker::~ObjectPicker()
+{
+    Cleanup();
+}
+
+void ObjectPicker::CreateCommandPool()
+{
+	vk_command_pool_info = vk::CommandPoolCreateInfo()
+							   .setFlags(vk::CommandPoolCreateFlags() | vk::CommandPoolCreateFlagBits::eResetCommandBuffer)
+							   .setQueueFamilyIndex(device->queue_family_indices.graphics_family.value());
+
+	try
+	{
+		vk_command_pool = device->vk_device.createCommandPool(vk_command_pool_info);
+	}
+	catch (const vk::SystemError& err)
+	{
+		NFT_ERROR(VKFatal, std::format("Failed To Create Command Pool:\n{}", err.what()));
+	}
+
+	// Allocate main command buffer
+	try
+	{
+		vk_command_buffer = device->vk_device.allocateCommandBuffers(vk::CommandBufferAllocateInfo()
+																		 .setCommandPool(vk_command_pool)
+																		 .setLevel(vk::CommandBufferLevel::ePrimary)
+																		 .setCommandBufferCount(1))[0];
+	}
+	catch (const vk::SystemError& err)
+	{
+		NFT_ERROR(VKFatal, std::format("Failed To Allocate Main Command Buffer:\n{}", err.what()));
+	}
+}
+
+void ObjectPicker::Init()
+{
+
+    // Create offscreen images for color and depth
+    color_attachment.SetDevice(device);
+    color_attachment.Init(vk::ImageCreateInfo()
+                          .setImageType(vk::ImageType::e2D)
+                          .setExtent(vk::Extent3D(extent, 1))
+                          .setFormat(vk::Format::eR32G32B32A32Uint) // Use UINT format for object IDs
+                          .setTiling(vk::ImageTiling::eOptimal)
+                          .setUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferSrc),
+                          vk::MemoryPropertyFlagBits::eDeviceLocal);
+    color_attachment.CreateImageView(vk::Format::eR32G32B32A32Uint);
+
+    depth_attachment.SetDevice(device);
+    vk::Format depth_format = FindFormat(device,
+                                          {vk::Format::eD32Sfloat, vk::Format::eD24UnormS8Uint},
+                                          vk::ImageTiling::eOptimal,
+                                          vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+    depth_attachment.Init(vk::ImageCreateInfo()
+                          .setImageType(vk::ImageType::e2D)
+                          .setExtent(vk::Extent3D(extent, 1))
+                          .setFormat(depth_format)
+                          .setTiling(vk::ImageTiling::eOptimal)
+                          .setUsage(vk::ImageUsageFlagBits::eDepthStencilAttachment),
+                          vk::MemoryPropertyFlagBits::eDeviceLocal);
+    depth_attachment.CreateImageView(depth_format);
+
+    // Create readback buffer for CPU access
+    readback_buffer = device->buffer_manager->CreateBuffer(
+        4 * sizeof(uint32_t), // RGBA32_UINT
+        vk::BufferUsageFlagBits::eTransferDst,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    CreateRenderPass();
+    CreateShaders();
+    CreatePipeline();
+    CreateFramebuffer();
+
+    // Allocate command buffer
+    command_buffer = device->vk_device.allocateCommandBuffers(
+        vk::CommandBufferAllocateInfo()
+            .setCommandPool() // You'll need to expose this
+            .setLevel(vk::CommandBufferLevel::ePrimary)
+            .setCommandBufferCount(1))[0];
+}
+
+void ObjectPicker::CreateRenderPass()
+{
+    // Color attachment for object IDs
+    vk::AttachmentDescription color_attachment_desc = vk::AttachmentDescription()
+        .setFormat(vk::Format::eR32G32B32A32Uint)
+        .setSamples(vk::SampleCountFlagBits::e1)
+        .setLoadOp(vk::AttachmentLoadOp::eClear)
+        .setStoreOp(vk::AttachmentStoreOp::eStore)
+        .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+        .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+        .setInitialLayout(vk::ImageLayout::eUndefined)
+        .setFinalLayout(vk::ImageLayout::eTransferSrcOptimal);
+
+    vk::AttachmentReference color_attachment_ref = vk::AttachmentReference()
+        .setAttachment(0)
+        .setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+
+    // Depth attachment
+    vk::Format depth_format = FindFormat(device,
+                                          {vk::Format::eD32Sfloat, vk::Format::eD24UnormS8Uint},
+                                          vk::ImageTiling::eOptimal,
+                                          vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+    
+    vk::AttachmentDescription depth_attachment_desc = vk::AttachmentDescription()
+        .setFormat(depth_format)
+        .setSamples(vk::SampleCountFlagBits::e1)
+        .setLoadOp(vk::AttachmentLoadOp::eClear)
+        .setStoreOp(vk::AttachmentStoreOp::eDontCare)
+        .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+        .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+        .setInitialLayout(vk::ImageLayout::eUndefined)
+        .setFinalLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+    vk::AttachmentReference depth_attachment_ref = vk::AttachmentReference()
+        .setAttachment(1)
+        .setLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+
+    vk::SubpassDescription subpass = vk::SubpassDescription()
+        .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+        .setColorAttachmentCount(1)
+        .setPColorAttachments(&color_attachment_ref)
+        .setPDepthStencilAttachment(&depth_attachment_ref);
+
+    std::vector<vk::AttachmentDescription> attachments = {color_attachment_desc, depth_attachment_desc};
+
+    vk::RenderPassCreateInfo render_pass_info = vk::RenderPassCreateInfo()
+        .setAttachmentCount(attachments.size())
+        .setPAttachments(attachments.data())
+        .setSubpassCount(1)
+        .setPSubpasses(&subpass);
+
+    picking_render_pass.vk_render_pass = device->vk_device.createRenderPass(render_pass_info);
+}
+
+void ObjectPicker::CreateShaders()
+{
+    // You'll need to create these shader includes similar to how the main shaders are handled
+    // For now, I'll assume you have the compiled shader code available
+    picking_shader_stages.clear();
+    picking_shader_stages.reserve(2);
+
+    // Vertex shader
+    picking_shader_stages.emplace_back(device);
+    // picking_shader_stages.back().shader = std::make_unique<Shader>(device, picking_shader_vert_code);
+    picking_shader_stages.back().vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
+        .setStage(vk::ShaderStageFlagBits::eVertex)
+        .setModule(picking_shader_stages.back().shader->GetShaderModule())
+        .setPName("main");
+
+    // Fragment shader
+    picking_shader_stages.emplace_back(device);
+    // picking_shader_stages.back().shader = std::make_unique<Shader>(device, picking_shader_frag_code);
+    picking_shader_stages.back().vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
+        .setStage(vk::ShaderStageFlagBits::eFragment)
+        .setModule(picking_shader_stages.back().shader->GetShaderModule())
+        .setPName("main");
+}
+
+void ObjectPicker::CreatePipeline()
+{
+    // Use the same descriptor set layout as the main rendering
+    // Set 0: Frame data (camera + object transforms)
+    std::vector<DescriptorSetLayout::Binding> frame_bindings = {
+        {0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex},
+        {1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eVertex}
+    };
+
+    picking_set_layout.Init(frame_bindings);
+
+    // Push constant for object ID
+    vk::PushConstantRange push_constant_range = vk::PushConstantRange()
+        .setStageFlags(vk::ShaderStageFlagBits::eFragment)
+        .setOffset(0)
+        .setSize(sizeof(uint32_t));
+
+    pipeline_layout.Init({picking_set_layout.vk_descriptor_set_layout}, {push_constant_range});
+
+    // Create descriptor pool
+    picking_descriptor_pool.Init(frame_bindings, 1);
+
+    // Vertex input (same as main rendering)
+    auto vertex_binding = GetVertexInputBindingDescription();
+    auto vertex_attributes = GetVertexInputAttributeDescriptions();
+
+	vertex_input_stage									= VertexInputStage(device);
+    vk::PipelineVertexInputStateCreateInfo vertex_input = vk::PipelineVertexInputStateCreateInfo()
+        .setVertexBindingDescriptionCount(1)
+        .setPVertexBindingDescriptions(&vertex_binding)
+        .setVertexAttributeDescriptionCount(vertex_attributes.size())
+        .setPVertexAttributeDescriptions(vertex_attributes.data());
+
+    vk::PipelineInputAssemblyStateCreateInfo input_assembly = vk::PipelineInputAssemblyStateCreateInfo()
+        .setTopology(vk::PrimitiveTopology::eTriangleList)
+        .setPrimitiveRestartEnable(VK_FALSE);
+
+    vk::Viewport viewport = vk::Viewport()
+        .setX(0.0f).setY(0.0f)
+        .setWidth(static_cast<float>(extent.width))
+        .setHeight(static_cast<float>(extent.height))
+        .setMinDepth(0.0f).setMaxDepth(1.0f);
+
+    vk::Rect2D scissor = vk::Rect2D()
+        .setOffset({0, 0})
+        .setExtent(extent);
+
+    vk::PipelineViewportStateCreateInfo viewport_state = vk::PipelineViewportStateCreateInfo()
+        .setViewportCount(1).setPViewports(&viewport)
+        .setScissorCount(1).setPScissors(&scissor);
+
+    vk::PipelineRasterizationStateCreateInfo rasterizer = vk::PipelineRasterizationStateCreateInfo()
+        .setDepthClampEnable(VK_FALSE)
+        .setRasterizerDiscardEnable(VK_FALSE)
+        .setPolygonMode(vk::PolygonMode::eFill)
+        .setLineWidth(1.0f)
+        .setCullMode(vk::CullModeFlagBits::eBack)
+        .setFrontFace(vk::FrontFace::eCounterClockwise)
+        .setDepthBiasEnable(VK_FALSE);
+
+	
+    vk::PipelineMultisampleStateCreateInfo multisampling = vk::PipelineMultisampleStateCreateInfo()
+        .setSampleShadingEnable(VK_FALSE)
+        .setRasterizationSamples(vk::SampleCountFlagBits::e1);
+
+    vk::PipelineDepthStencilStateCreateInfo depth_stencil = vk::PipelineDepthStencilStateCreateInfo()
+        .setDepthTestEnable(VK_TRUE)
+        .setDepthWriteEnable(VK_TRUE)
+        .setDepthCompareOp(vk::CompareOp::eLess)
+        .setDepthBoundsTestEnable(VK_FALSE)
+        .setStencilTestEnable(VK_FALSE);
+
+    vk::PipelineColorBlendAttachmentState color_blend_attachment = vk::PipelineColorBlendAttachmentState()
+        .setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | 
+                           vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA)
+        .setBlendEnable(VK_FALSE);
+
+    vk::PipelineColorBlendStateCreateInfo color_blending = vk::PipelineColorBlendStateCreateInfo()
+        .setLogicOpEnable(VK_FALSE)
+        .setAttachmentCount(1)
+        .setPAttachments(&color_blend_attachment);
+
+    std::vector<vk::PipelineShaderStageCreateInfo> shader_stage_info;
+    for (const auto& shader_stage : picking_shader_stages)
+        shader_stage_info.push_back(shader_stage.vk_shader_stage_info);
+
+    vk::GraphicsPipelineCreateInfo pipeline_info = vk::GraphicsPipelineCreateInfo()
+        .setStageCount(shader_stage_info.size())
+        .setPStages(shader_stage_info.data())
+        .setPVertexInputState(&vertex_input)
+        .setPInputAssemblyState(&input_assembly)
+        .setPViewportState(&viewport_state)
+        .setPRasterizationState(&rasterizer)
+        .setPMultisampleState(&multisampling)
+        .setPDepthStencilState(&depth_stencil)
+        .setPColorBlendState(&color_blending)
+        .setLayout(picking_pipeline_layout.vk_pipeline_layout)
+        .setRenderPass(picking_render_pass.vk_render_pass)
+        .setSubpass(0);
+
+    picking_pipeline = device->vk_device.createGraphicsPipeline(nullptr, pipeline_info).value;
+}
+
+void ObjectPicker::CreateFramebuffer()
+{
+    std::vector<vk::ImageView> attachments = {
+        color_attachment.GetImageView(),
+        depth_attachment.GetImageView()
+    };
+
+    vk::FramebufferCreateInfo framebuffer_info = vk::FramebufferCreateInfo()
+        .setRenderPass(picking_render_pass.vk_render_pass)
+        .setAttachmentCount(attachments.size())
+        .setPAttachments(attachments.data())
+        .setWidth(extent.width)
+        .setHeight(extent.height)
+        .setLayers(1);
+
+    framebuffer = device->vk_device.createFramebuffer(framebuffer_info);
+}
+
+uint32_t ObjectPicker::PickObject(const std::vector<ObjectData>& objects,
+                                  const GeometryBatcher* geometry_batcher,
+                                  const glm::mat4& view_matrix,
+                                  const glm::mat4& proj_matrix,
+                                  int mouse_x, int mouse_y)
+{
+    // Record picking commands
+    RecordPickingCommands(objects, geometry_batcher, view_matrix, proj_matrix);
+
+    // Submit command buffer
+    vk::SubmitInfo submit_info = vk::SubmitInfo()
+        .setCommandBufferCount(1)
+        .setPCommandBuffers(&command_buffer);
+
+    device->vk_graphics_queue.submit(submit_info, nullptr);
+    device->vk_device.waitIdle(); // Wait for completion
+
+    // Copy pixel data from the color attachment to readback buffer
+    vk::CommandBuffer copy_cmd = device->vk_device.allocateCommandBuffers(
+        vk::CommandBufferAllocateInfo()
+            .setCommandPool(device->GetGraphicsCommandPool())
+            .setLevel(vk::CommandBufferLevel::ePrimary)
+            .setCommandBufferCount(1))[0];
+
+    copy_cmd.begin(vk::CommandBufferBeginInfo().setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+
+    // Copy single pixel at mouse position
+    vk::BufferImageCopy copy_region = vk::BufferImageCopy()
+        .setBufferOffset(0)
+        .setBufferRowLength(0)
+        .setBufferImageHeight(0)
+        .setImageSubresource(vk::ImageSubresourceLayers()
+                             .setAspectMask(vk::ImageAspectFlagBits::eColor)
+                             .setMipLevel(0)
+                             .setBaseArrayLayer(0)
+                             .setLayerCount(1))
+        .setImageOffset({mouse_x, mouse_y, 0})
+        .setImageExtent({1, 1, 1});
+
+    copy_cmd.copyImageToBuffer(color_attachment.vk_image, vk::ImageLayout::eTransferSrcOptimal,
+                               readback_buffer->vk_buffer, 1, &copy_region);
+
+    copy_cmd.end();
+
+    vk::SubmitInfo copy_submit = vk::SubmitInfo()
+        .setCommandBufferCount(1)
+        .setPCommandBuffers(&copy_cmd);
+
+    device->vk_graphics_queue.submit(copy_submit, nullptr);
+    device->vk_device.waitIdle();
+
+    // Read the object ID from the buffer
+    uint32_t* pixel_data = static_cast<uint32_t*>(device->vk_device.mapMemory(
+        readback_buffer->vk_memory, 0, readback_buffer->vk_memory_info.allocationSize));
+    uint32_t object_id = pixel_data[0]; // R component contains object ID
+    device->vk_device.unmapMemory(readback_buffer->vk_memory);
+
+    return object_id;
+}
+
+void ObjectPicker::RecordPickingCommands(const std::vector<ObjectData>& objects,
+                                         const GeometryBatcher* geometry_batcher,
+                                         const glm::mat4& view_matrix,
+                                         const glm::mat4& proj_matrix)
+{
+    command_buffer.reset(vk::CommandBufferResetFlags());
+    command_buffer.begin(vk::CommandBufferBeginInfo());
+
+    // Clear values
+    std::vector<vk::ClearValue> clear_values = {
+        vk::ClearValue().setColor(vk::ClearColorValue(std::array<uint32_t, 4>{0, 0, 0, 0})),
+        vk::ClearValue().setDepthStencil(vk::ClearDepthStencilValue(1.0f, 0))
+    };
+
+    vk::RenderPassBeginInfo render_pass_begin = vk::RenderPassBeginInfo()
+        .setRenderPass(picking_render_pass.vk_render_pass)
+        .setFramebuffer(framebuffer)
+        .setRenderArea(vk::Rect2D().setOffset({0, 0}).setExtent(extent))
+        .setClearValueCount(clear_values.size())
+        .setPClearValues(clear_values.data());
+
+    command_buffer.beginRenderPass(render_pass_begin, vk::SubpassContents::eInline);
+
+    command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, picking_pipeline);
+
+    // Bind vertex buffer
+    vk::Buffer vertex_buffers[] = {geometry_batcher->vertex_buffer->vk_buffer};
+    VkDeviceSize offsets[] = {0};
+    command_buffer.bindVertexBuffers(0, 1, vertex_buffers, offsets);
+    command_buffer.bindIndexBuffer(geometry_batcher->index_buffer->vk_buffer, 0, vk::IndexType::eUint32);
+
+    // TODO: Bind descriptor set with camera data (you'll need to create this)
+
+    // Render each object with its unique ID
+    for (uint32_t i = 0; i < objects.size(); ++i)
+    {
+        const auto& object = objects[i];
+        uint32_t object_id = i + 1; // Object IDs start from 1 (0 = background)
+
+        // Push object ID as push constant
+        command_buffer.pushConstants(picking_pipeline_layout.vk_pipeline_layout,
+                                     vk::ShaderStageFlagBits::eFragment, 0, sizeof(uint32_t), &object_id);
+
+        // Find mesh data for this object
+        auto mesh_it = geometry_batcher->mesh_data.find(object.mesh);
+        if (mesh_it != geometry_batcher->mesh_data.end())
+        {
+            const auto& mesh_data = mesh_it->second;
+            uint32_t index_count = static_cast<uint32_t>(mesh_data.index_size);
+            uint32_t first_index = static_cast<uint32_t>(mesh_data.index_offset);
+
+            command_buffer.drawIndexed(index_count, 1, first_index, 0, i);
+        }
+    }
+
+    command_buffer.endRenderPass();
+    command_buffer.end();
+}
+
+void ObjectPicker::Recreate(vk::Extent2D new_extent)
+{
+    extent = new_extent;
+    Cleanup();
+    Init();
+}
+
+void ObjectPicker::Cleanup()
+{
+    if (device && device->vk_device)
+    {
+        if (framebuffer)
+        {
+            device->vk_device.destroyFramebuffer(framebuffer);
+            framebuffer = VK_NULL_HANDLE;
+        }
+        if (picking_pipeline)
+        {
+            device->vk_device.destroyPipeline(picking_pipeline);
+            picking_pipeline = VK_NULL_HANDLE;
+        }
+        picking_render_pass.Cleanup();
+        picking_pipeline_layout.Cleanup();
+        picking_set_layout.Cleanup();
+        picking_descriptor_pool.Cleanup();
+        
+        for (auto& shader_stage : picking_shader_stages)
+            if (shader_stage.shader)
+                shader_stage.shader.reset();
+        picking_shader_stages.clear();
+
+        if (readback_buffer)
+        {
+            device->buffer_manager->DestroyBuffer(readback_buffer);
+            readback_buffer = nullptr;
+        }
+    }
+}
+
+// Add to Surface class methods:
+
+uint32_t Surface::PickObjectAtPosition(int mouse_x, int mouse_y)
+{
+    if (!object_picker || !scene)
+        return 0;
+
+    Frame& current_frame = frames[frame_index];
+    return object_picker->PickObject(scene->objects, scene->geometry_batcher.get(),
+                                     current_frame.camera_data.view, current_frame.camera_data.proj,
+                                     mouse_x, mouse_y);
+}
+
+// Update Surface::Init() to create the object picker:
+void Surface::Init()
+{
+    // ... existing code ...
+    
+    // Create object picker after scene is created
+    object_picker = std::make_unique<ObjectPicker>(device, extent);
+}
+
+// Update Surface::RecreateSwapchain() to recreate the object picker:
+void Surface::RecreateSwapchain()
+{
+    // ... existing code ...
+    
+    // Recreate object picker with new extent
+    if (object_picker)
+        object_picker->Recreate(extent);
+}
+
+// Update Surface::Cleanup() to cleanup the object picker:
+void Surface::Cleanup()
+{
+    // ... existing code before cleanup ...
+    
+    if (object_picker)
+        object_picker.reset();
+    
+    // ... rest of existing cleanup code ...
+}

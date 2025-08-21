@@ -19,4 +19,5 @@ class Enum
 	constexpr	   operator T() const { return value; }
 	constexpr T value() const { return value; }
 };
+
 }	 // namespace nft

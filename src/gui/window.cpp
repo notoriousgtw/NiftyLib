@@ -3,7 +3,7 @@
 #include "core/error.h"
 #include "vk/handler.h"
 
-namespace nft::GUI
+namespace nft::vulkan
 {
 void Window::Init()
 {
@@ -16,21 +16,24 @@ void Window::Init()
 	window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
 	if (window == NULL)
 		NFT_ERROR(GLFWFatal, std::format("Failed to create window: \"{}\"", title));
-	vulkan::VulkanHandler::AddSurface(window);
-	glfwSetWindowUserPointer(window, this);
+	event_handler = std::make_unique<EventHandler>();
+	vulkan::VulkanHandler::AddSurface(this);
 
+	glfwSetWindowUserPointer(window, this);
+	glfwSetKeyCallback(window, KeyCallbackStatic);
 }
 
 void Window::PollEvents() const
 {
 	glfwPollEvents();
-
 }
 
-void Window::HandleKeyEvent(int key, int scancode, int action, int mods)
+void Window::KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
 
+	Window* handler = static_cast<Window*>(glfwGetWindowUserPointer(window));
+	if (handler)
+		handler->event_handler->Notify<KeyEvent>(key, scancode, action, mods);
 }
-
 
 }	 // namespace nft::GUI

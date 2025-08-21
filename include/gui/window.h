@@ -1,10 +1,18 @@
 #pragma once
 
+#include "core/event_base.h"
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <string>
+#include <memory>
 
-namespace nft::GUI
+namespace nft
+{
+class EventHandler;
+}
+
+namespace nft::vulkan
 {
 class Window
 {
@@ -13,9 +21,7 @@ class Window
 	Window(const Window&)			 = delete;
 	Window& operator=(const Window&) = delete;
 
-	//std::vector<std::unique_ptr<Event>> events;
-	KeyPressEvent						key_event;
-
+	// std::vector<std::unique_ptr<Event>> events;
 	std::string GetTitle() const { return title; };
 	GLFWwindow* GetGLFWWindow() const { return window; };
 	void		SetTitle(const std::string& new_title)
@@ -40,25 +46,13 @@ class Window
 	int			height;
 	std::string title;
 
-	GLFWwindow* window;
+	GLFWwindow*	 window;
+	std::unique_ptr<EventHandler> event_handler;
 
-	void		HandleKeyEvent(int key, int scancode, int action, int mods);
-	static void KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods)
-	{
-		Window* handler = static_cast<Window*>(glfwGetWindowUserPointer(window));
-		if (handler)
-		{
-			if (key >= 0 && key <= GLFW_KEY_LAST)
-			{
-				if (action == GLFW_PRESS)
-					handler->key_event.key_states[key] = true;
-				else if (action == GLFW_RELEASE)
-					handler->key_event.key_states[key] = false;
-			}
-			handler->key_event.Notify();
-		}
-	}
+	static void KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods);
 
 	void Init();
+	friend class Surface;
+	friend class Scene;
 };
 }	 // namespace nft::GUI

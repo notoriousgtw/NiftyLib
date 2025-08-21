@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/log.h"
-#include "core/event.h"
+//#include "core/event.h"
 #include "gui/window.h"
 #include "vk/scene.h"
 
@@ -12,6 +12,7 @@ namespace nft
 {
 class App
 {
+	using Window = vulkan::Window;
   public:
 	App() = delete;
 	App(std::string name);
@@ -39,15 +40,15 @@ class App
 	~App();
 	Logger*		 GetLogger() { return &logger; }
 	std::string	 GetName() { return name; }
-	GUI::Window* GetMainWindow() { return main_window; }
+	Window* GetMainWindow() { return main_window; }
 
   private:
 	std::string name;
 	Logger		logger;
 	// vk::Instance instance { nullptr };
 
-	GUI::Window*						   main_window;
-	std::set<std::unique_ptr<GUI::Window>> windows;
+	Window*						   main_window;
+	std::set<std::unique_ptr<Window>> windows;
 
 	// void CreateInstance();
 

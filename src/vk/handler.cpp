@@ -72,7 +72,7 @@ void VulkanHandler::Render()
     }
 }
 
-void VulkanHandler::AddSurface(GLFWwindow* window) 
+void VulkanHandler::AddSurface(Window* window) 
 {
     surfaces.push_back(std::make_unique<Surface>(instance.get(), device.get(), window));
 }

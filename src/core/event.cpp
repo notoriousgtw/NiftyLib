@@ -4,4 +4,5 @@
 
 namespace nft
 {
+//std::unordered_set<std::string> EventHandler::event_codes;
 }	 // namespace nft

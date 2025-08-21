@@ -22,7 +22,6 @@ App::App(std::string name)
 
 	ErrorHandler::Init(this);
 	// EventHandler::Init(this);
-	events.push_back(std::make_unique<KeyPressEvent>());
 }
 
 void App::Init()
@@ -40,7 +39,7 @@ void App::Init()
 	vulkan::VulkanHandler::Init(this);
 
 	// Add main window to stack
-	auto window = std::make_unique<GUI::Window>(1280, 960, "Nifty App");
+	auto window = std::make_unique<Window>(1280, 960, "Nifty App");
 	main_window = window.get();
 	windows.insert(std::move(window));
 
