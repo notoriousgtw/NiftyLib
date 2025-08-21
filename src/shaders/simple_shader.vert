@@ -4,7 +4,7 @@
 layout (set = 0, binding = 0) uniform UniformBaseObject {
 	mat4 view;
 	mat4 proj;
-	mat4 view_proj;
+	vec3 pos;
 } CameraData;
 
 layout (std140, set = 0, binding = 1) readonly buffer StorageBuffer {
@@ -31,7 +31,7 @@ void main() {
 
 	mat4 model_matrix = ObjectData.transforms[gl_InstanceIndex];
 	vec4 world_pos = model_matrix * vec4(vertex_position, 1.0);
-	gl_Position = CameraData.view_proj * world_pos;
+	gl_Position = CameraData.proj * CameraData.view * world_pos;
 
 	frag_color = vertex_color;
 	frag_texture_coord = vertex_texture_coord;

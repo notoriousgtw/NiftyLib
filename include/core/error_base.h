@@ -10,8 +10,6 @@
 #include <cxxabi.h>
 #endif
 
-// #include "NiftyApp.h"
-
 namespace nft
 {
 
@@ -131,6 +129,12 @@ struct FatalError: public IError<Derived>
 struct DuplicateErrorCodeFatal: public FatalError<DuplicateErrorCodeFatal>
 {
 	DuplicateErrorCodeFatal(std::string message, std::string function_name = ""):
+		FatalError(std::move(message), std::move(function_name)) {};
+};
+
+struct DuplicateEventCodeFatal: public FatalError<DuplicateEventCodeFatal>
+{
+	DuplicateEventCodeFatal(std::string message, std::string function_name = ""):
 		FatalError(std::move(message), std::move(function_name)) {};
 };
 

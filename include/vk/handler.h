@@ -11,6 +11,7 @@
 #endif
 
 #include "core/log.h"
+#include "gui/window.h"
 #include "vk/common.h"
 #include "vk/device.h"
 #include "vk/instance.h"
@@ -47,7 +48,7 @@ class VulkanHandler
 	static void ShutDown();
 
 	// Surface management
-	static void AddSurface(GLFWwindow* window);
+	static void AddSurface(Window* window);
 	// static Surface* GetPrimarySurface();
 
 	//=========================================================================

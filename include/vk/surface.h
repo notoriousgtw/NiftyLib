@@ -3,6 +3,7 @@
 // Core includes
 #include "core/app.h"
 #include "core/error.h"
+#include "gui/window.h"
 #include "vk/common.h"
 #include "vk/shader.h"
 #include "vk/util.h"
@@ -13,6 +14,77 @@ namespace nft::vulkan
 // Forward declarations
 class Instance;
 class Device;
+
+//=============================================================================
+// OBJECT PICKER CLASS
+//=============================================================================
+class ObjectPicker
+{
+  public:
+	ObjectPicker(Device* device, vk::Extent2D extent);
+	~ObjectPicker();
+
+	void Init();
+	void Cleanup();
+	void Recreate(vk::Extent2D new_extent);
+
+	// Render objects with color IDs and read the pixel at the given position
+	uint32_t PickObject(const std::vector<ObjectData>& objects,
+						const GeometryBatcher*		   geometry_batcher,
+						const glm::mat4&			   view_matrix,
+						const glm::mat4&			   proj_matrix,
+						int							   mouse_x,
+						int							   mouse_y);
+
+  private:
+	Device*		 device;
+	vk::Extent2D extent;
+
+	// Offscreen render resources
+	Image			color_attachment;
+	Image			depth_attachment;
+	vk::Framebuffer framebuffer = VK_NULL_HANDLE;
+
+	std::vector<ShaderStage> shader_stages;	   // Shader stages for picking
+
+	vk::CommandPool			  vk_command_pool	= VK_NULL_HANDLE;
+	vk::CommandBuffer		  vk_command_buffer = VK_NULL_HANDLE;
+	vk::CommandPoolCreateInfo vk_command_pool_info;
+
+	// Picking render pass and pipeline
+	VertexInputStage			   vertex_input_stage;
+	InputAssemblyStage			   input_assembly_stage;
+	ViewportStage				   viewport_stage;
+	RasterizationStage			   rasterization_stage;
+	DepthStencilStage			   depth_stencil_stage;
+	MultisampleStage			   multisample_stage;
+	ColorBlendStage				   color_blend_stage;
+	RenderPass					   render_pass;
+	vk::Pipeline				   pipeline = VK_NULL_HANDLE;
+	vk::GraphicsPipelineCreateInfo pipeline_info;
+	PipelineLayout				   pipeline_layout;
+	DescriptorSetLayout			   picking_set_layout;
+	DescriptorPool				   picking_descriptor_pool;
+
+	// Shader stages for picking
+	std::vector<ShaderStage> picking_shader_stages;
+
+	// Buffer for reading back pixel data
+	Buffer* readback_buffer = nullptr;
+
+	// Command buffer for picking operations
+	vk::CommandBuffer command_buffer = VK_NULL_HANDLE;
+
+	void CreateCommandPool();
+	void CreateRenderPass();
+	void CreatePipeline();
+	void CreateFramebuffer();
+	void CreateShaders();
+	void RecordPickingCommands(const std::vector<ObjectData>& objects,
+							   const GeometryBatcher*		  geometry_batcher,
+							   const glm::mat4&				  view_matrix,
+							   const glm::mat4&				  proj_matrix);
+};
 
 //=============================================================================
 // SURFACE CLASS
@@ -36,7 +108,7 @@ class Surface
 	{
 		glm::mat4 view;
 		glm::mat4 proj;
-		glm::mat4 view_proj;
+		glm::vec3 pos;
 	};
 
 	// Individual frame data for rendering
@@ -67,17 +139,17 @@ class Surface
 		void*				   object_transform_ptr	   = nullptr;
 
 		// resource descriptors
-		vk::DescriptorSet vk_descriptor_set = VK_NULL_HANDLE;		// Frame data (camera + transforms)
+		vk::DescriptorSet vk_descriptor_set = VK_NULL_HANDLE;	 // Frame data (camera + transforms)
 
 		void Init(Surface* surface, Scene* scene);
 		void MakeDescriptorResources();
 		void AllocateDescriptorResources();
 		void MakeDepthResources();
-		void Prepare();
+		void Prepare(glm::mat4 camera_transforms);
 		void Cleanup();
 
 	  private:
-		Surface* surface;
+		Surface* surface;	 // Pointer to the parent surface
 		Device*	 device;
 		Scene*	 scene;
 	};
@@ -85,7 +157,7 @@ class Surface
 	//=========================================================================
 	// CONSTRUCTOR & DESTRUCTOR
 	//=========================================================================
-	Surface(Instance* instance, Device* device, GLFWwindow* window);
+	Surface(Instance* instance, Device* device, Window* window);
 	~Surface();
 
 	//=========================================================================
@@ -104,7 +176,13 @@ class Surface
 
 	void PrepareScene(vk::CommandBuffer command_buffer);
 	void Render();
-	 void RecordDrawCommands(Frame& frame, uint32_t image_index);
+	void RecordDrawCommands(Frame& frame, uint32_t image_index);
+
+	//=========================================================================
+	// OBJECT PICKING METHODS
+	//=========================================================================
+	uint32_t PickObjectAtPosition(int mouse_x, int mouse_y);
+	Scene*	 GetScene() const { return scene.get(); }
 
 	//=========================================================================
 	// CREATION METHODS
@@ -112,7 +190,7 @@ class Surface
 	void CreateSwapchain();
 	void RecreateSwapchain();
 	void CreatePipeline();
-	void CreateTextureDescriptorSet();  // Create descriptor set for material textures
+	void CreateTextureDescriptorSet();	  // Create descriptor set for material textures
 	void CreateFrameBuffers();
 	void CreateCommandPool();
 	void CreateFrameCommandBuffers();
@@ -123,7 +201,7 @@ class Surface
 	App*		GetApp() const { return app; }
 	Instance*	GetInstance() const { return instance; }
 	Device*		GetDevice() const { return device; }
-	GLFWwindow* GetWindow() const { return window; }
+	GLFWwindow* GetWindow() const { return window->GetGLFWWindow(); }
 
 	// Vulkan objects (read-only access)
 	const vk::SurfaceKHR&	GetVkSurface() const { return vk_surface; }
@@ -191,10 +269,10 @@ class Surface
 	//=========================================================================
 
 	// Core references
-	App*		app		 = nullptr;
-	Instance*	instance = nullptr;
-	Device*		device	 = nullptr;
-	GLFWwindow* window	 = nullptr;
+	App*	  app	   = nullptr;
+	Instance* instance = nullptr;
+	Device*	  device   = nullptr;
+	Window*	  window   = nullptr;
 
 	// Vulkan surface
 	vk::SurfaceKHR vk_surface = VK_NULL_HANDLE;
@@ -226,10 +304,10 @@ class Surface
 	MultisampleStage					 multisample_stage;
 	ColorBlendStage						 color_blend_stage;
 	DescriptorSetLayout					 frame_set_layout;
-	DescriptorSetLayout					 texture_set_layout;      // Renamed from mesh_set_layout
+	DescriptorSetLayout					 texture_set_layout;	// Renamed from mesh_set_layout
 	std::vector<vk::DescriptorSetLayout> vk_descriptor_set_layouts;
 	DescriptorPool						 frame_descriptor_pool;
-	DescriptorPool						 texture_descriptor_pool;  // Renamed from mesh_descriptor_pool
+	DescriptorPool						 texture_descriptor_pool;	 // Renamed from mesh_descriptor_pool
 	PipelineLayout						 pipeline_layout;
 	RenderPass							 render_pass;
 	vk::GraphicsPipelineCreateInfo		 vk_pipeline_info;
@@ -238,7 +316,10 @@ class Surface
 	size_t				   max_frames_in_flight;
 	size_t				   frame_index = 0;
 	std::unique_ptr<Scene> scene;
-	vk::DescriptorSet	   texture_descriptor_set = VK_NULL_HANDLE; // Global texture descriptor set
+	vk::DescriptorSet	   texture_descriptor_set = VK_NULL_HANDLE;	   // Global texture descriptor set
+
+	// Object picking
+	std::unique_ptr<ObjectPicker> object_picker;
 
 	vk::ClearValue clear_color;
 	vk::ClearValue clear_depth;
@@ -250,6 +331,7 @@ class Surface
 	// PRIVATE HELPER METHODS
 	//=========================================================================
 
+	friend class Scene;
 	friend struct ShaderStage;
 	friend struct VertexShaderStage;
 	friend struct FragmentShaderStage;

@@ -136,6 +136,7 @@ class Device
 	friend class Buffer;	// Needs access to vk_device, vk_physical_device, and queues
 	friend class BufferManager;
 	friend class Surface;	 // Needs access to vk_device, vk_physical_device, and queues
+	friend class ObjectPicker;	 // Needs access to vk_device, vk_physical_device, and queues
 	friend class Scene;
 	friend class Image;
 	friend class Texture;

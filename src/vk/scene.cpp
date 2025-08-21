@@ -1,10 +1,11 @@
 #include "vk/scene.h"
 
+#include "gui/window.h"
 #include "vk/handler.h"
 
 namespace nft::vulkan
 {
-Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer): device(device)
+Scene::Scene(Surface* surface, vk::CommandBuffer main_command_buffer): surface(surface), device(surface->device)
 {
 	if (!device)
 		NFT_ERROR(VKFatal, "Device Is Null!");
@@ -12,13 +13,13 @@ Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer): device(devi
 
 	meshes.resize(1, new SimpleMesh());
 
-	device->app->key_event
+	Subscribe<KeyEvent>(surface->window->event_handler.get());
 
 	ObjectData loaded_object;
 	loaded_object.mesh = meshes[0];
 	loaded_object.mesh->LoadObj("./assets/models", "monkey.obj");
-	loaded_object.transform		 = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 1.0f, 0.0f));
-	loaded_object.transform		 = glm::rotate(loaded_object.transform, glm::radians(45.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+	loaded_object.transform		 = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, -3.0f));
+	loaded_object.transform		 = glm::rotate(loaded_object.transform, glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 	loaded_object.material_index = 0;	 // Use the first material
 	objects.push_back(loaded_object);
 	geometry_batcher->AddGeometry(loaded_object.mesh);
@@ -93,8 +94,98 @@ Scene::Scene(Device* device, vk::CommandBuffer main_command_buffer): device(devi
 
 	materials.push_back(default_material);
 	materials.push_back(default_textured_material);
+	camera_transforms = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	geometry_batcher->CreateBuffers(main_command_buffer, device->vk_graphics_queue);
+}
+
+void Scene::UpdateCameraFromOrbit()
+{
+	// Calculate camera position based on orbital parameters
+	float x = orbit_target.x + orbit_distance * cos(orbit_angle_vertical) * cos(orbit_angle_horizontal);
+	float y = orbit_target.y + orbit_distance * sin(orbit_angle_vertical);
+	float z = orbit_target.z + orbit_distance * cos(orbit_angle_vertical) * sin(orbit_angle_horizontal);
+
+	glm::vec3 camera_position = glm::vec3(x, y, z);
+
+	// Create look-at matrix
+	glm::vec3 up		  = glm::vec3(0.0f, 1.0f, 0.0f);
+	glm::mat4 view_matrix = glm::lookAt(camera_position, orbit_target, up);
+
+	// Convert view matrix to camera transform (inverse of view matrix)
+	camera_transforms = glm::inverse(view_matrix);
+}
+
+void Scene::Update(IEventBase* source)
+{
+	if (source->GetCode() == KeyEvent::GetCode())
+	{
+		KeyEvent* key_event = static_cast<KeyEvent*>(source);
+		if (key_event->action == GLFW_PRESS || key_event->action == GLFW_REPEAT)
+		{
+			bool camera_changed = false;
+
+			switch (key_event->key)
+			{
+			// Orbital rotation controls
+			case GLFW_KEY_A:	// Rotate left
+				orbit_angle_horizontal -= glm::radians(orbit_speed);
+				camera_changed = true;
+				break;
+			case GLFW_KEY_D:	// Rotate right
+				orbit_angle_horizontal += glm::radians(orbit_speed);
+				camera_changed = true;
+				break;
+			case GLFW_KEY_W:	// Rotate up
+				orbit_angle_vertical += glm::radians(orbit_speed);
+				// Clamp vertical angle to prevent flipping
+				orbit_angle_vertical = glm::clamp(orbit_angle_vertical, glm::radians(-89.0f), glm::radians(89.0f));
+				camera_changed		 = true;
+				break;
+			case GLFW_KEY_S:	// Rotate down
+				orbit_angle_vertical -= glm::radians(orbit_speed);
+				// Clamp vertical angle to prevent flipping
+				orbit_angle_vertical = glm::clamp(orbit_angle_vertical, glm::radians(-89.0f), glm::radians(89.0f));
+				camera_changed		 = true;
+				break;
+
+			// Distance controls
+			case GLFW_KEY_Q:	// Zoom in
+				orbit_distance = glm::max(0.5f, orbit_distance - 0.5f);
+				camera_changed = true;
+				break;
+			case GLFW_KEY_E:	// Zoom out
+				orbit_distance = glm::min(50.0f, orbit_distance + 0.5f);
+				camera_changed = true;
+				break;
+
+			// Reset camera
+			case GLFW_KEY_R:
+				orbit_distance		   = 5.0f;
+				orbit_angle_horizontal = 0.0f;
+				orbit_angle_vertical   = 0.0f;
+				camera_changed		   = true;
+				break;
+
+			default: break;
+			}
+
+			if (camera_changed)
+			{
+				UpdateCameraFromOrbit();
+			}
+		}
+	}
+	// if (source->GetType() == EventType::KeyEvent)
+	//{
+	//	KeyEvent* key_event = static_cast<KeyEvent*>(source);
+	//	if (key_event->GetAction() == KeyAction::Press && key_event->GetKey() == KeyCode::F5)
+	//	{
+	//		// Reload the scene or perform any other action
+	//		app->GetLogger()->Debug("Reloading scene on F5 press", "VKScene");
+	//		// For now, just log it
+	//	}
+	// }
 }
 
 vk::VertexInputBindingDescription GetVertexInputBindingDescription()
