@@ -26,7 +26,7 @@ Device::Device(Instance* instance) : instance(instance)
 {
     // Validate input parameters
     if (!instance)
-        NFT_ERROR(VKFatal, "Instance is null!");
+        NFT_ERROR(VulkanFatal, "Instance is null!");
     
     app = instance->GetApp();
     
@@ -153,7 +153,7 @@ void Device::FindSuitableDevice()
         }
     }
 
-    NFT_ERROR(VKFatal, "Failed To Find Suitable Device!");
+    NFT_ERROR(VulkanFatal, "Failed To Find Suitable Device!");
 }
 
 void Device::FindQueueFamilies()
@@ -204,7 +204,7 @@ void Device::FindQueueFamilies()
     {
         if (!queue_family_indices.graphics_family.has_value())
         {
-            NFT_ERROR(VKFatal, "No graphics queue family found!");
+            NFT_ERROR(VulkanFatal, "No graphics queue family found!");
         }
         if (!queue_family_indices.present_family.has_value())
         {
@@ -261,7 +261,7 @@ void Device::CreateDevice()
     }
     catch (const vk::SystemError& err)
     {
-        NFT_ERROR(VKFatal, std::format("Failed To Create Logical Device:\n{}", err.what()));
+        NFT_ERROR(VulkanFatal, std::format("Failed To Create Logical Device:\n{}", err.what()));
     }
 
     app->GetLogger()->Debug("Logical Device Created Successfully!", "VKInit");
@@ -283,7 +283,7 @@ vk::Semaphore Device::CreateSemaphore() const
     // Validate device is created
     if (!vk_device)
     {
-        NFT_ERROR(VKFatal, "Cannot create semaphore: Device not initialized!");
+        NFT_ERROR(VulkanFatal, "Cannot create semaphore: Device not initialized!");
     }
 
     vk::SemaphoreCreateInfo semaphore_info{};
@@ -301,7 +301,7 @@ vk::Semaphore Device::CreateSemaphore() const
     }
     catch (const vk::SystemError& err)
     {
-        NFT_ERROR(VKFatal, std::format("Failed to create semaphore: {}", err.what()));
+        NFT_ERROR(VulkanFatal, std::format("Failed to create semaphore: {}", err.what()));
     }
 }
 
@@ -321,7 +321,7 @@ vk::Fence Device::CreateFence(const vk::FenceCreateInfo& fence_info) const
     // Validate device is created
     if (!vk_device)
     {
-        NFT_ERROR(VKFatal, "Cannot create fence: Device not initialized!");
+        NFT_ERROR(VulkanFatal, "Cannot create fence: Device not initialized!");
     }
 
     try
@@ -337,7 +337,7 @@ vk::Fence Device::CreateFence(const vk::FenceCreateInfo& fence_info) const
     }
     catch (const vk::SystemError& err)
     {
-        NFT_ERROR(VKFatal, std::format("Failed to create fence: {}", err.what()));
+        NFT_ERROR(VulkanFatal, std::format("Failed to create fence: {}", err.what()));
     }
 }
 

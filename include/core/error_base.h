@@ -13,6 +13,20 @@
 namespace nft
 {
 
+	#define NFT_DECLARE_ERROR_TRIO(PREFIX) \
+		struct PREFIX##Warning : public Warning<PREFIX##Warning> \
+		{ \
+			PREFIX##Warning(std::string message, std::string function_name = "") : Warning(std::move(message), std::move(function_name)) {} \
+		}; \
+		struct PREFIX##Error : public Error<PREFIX##Error> \
+		{ \
+			PREFIX##Error(std::string message, std::string function_name = "") : Error(std::move(message), std::move(function_name)) {} \
+		}; \
+		struct PREFIX##Fatal : public FatalError<PREFIX##Fatal> \
+		{ \
+			PREFIX##Fatal(std::string message, std::string function_name = "") : FatalError(std::move(message), std::move(function_name)) {} \
+		};
+
 class ErrorHandler;
 
 class App;
@@ -138,40 +152,71 @@ struct DuplicateEventCodeFatal: public FatalError<DuplicateEventCodeFatal>
 		FatalError(std::move(message), std::move(function_name)) {};
 };
 
-struct GLFWWarning: public Warning<GLFWWarning>
-{
-	GLFWWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
-};
+//struct GLFWWarning: public Warning<GLFWWarning>
+//{
+//	GLFWWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
+//};
+//
+//struct GLFWError: public Error<GLFWError>
+//{
+//	GLFWError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+//};
+//
+//struct GLFWFatal: public FatalError<GLFWFatal>
+//{
+//	GLFWFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
+//};
 
-struct GLFWError: public Error<GLFWError>
-{
-	GLFWError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
-};
+NFT_DECLARE_ERROR_TRIO(GLFW)
 
-struct GLFWFatal: public FatalError<GLFWFatal>
-{
-	GLFWFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
-};
+//struct VKWarning: public Warning<VKWarning>
+//{
+//	VKWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
+//};
+//
+//struct VKError: public Error<VKError>
+//{
+//	VKError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+//};
+//
+//struct VKFatal: public FatalError<VKFatal>
+//{
+//	VKFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
+//};
 
-struct VKWarning: public Warning<VKWarning>
-{
-	VKWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
-};
+NFT_DECLARE_ERROR_TRIO(Vulkan)
 
-struct VKError: public Error<VKError>
-{
-	VKError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
-};
+//struct FileError: public Error<FileError>
+//{
+//	FileError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+//};
 
-struct VKFatal: public FatalError<VKFatal>
-{
-	VKFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
-};
+NFT_DECLARE_ERROR_TRIO(File)
 
-struct FileError: public Error<FileError>
-{
-	FileError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
-};
+//struct ParseError: public Error<ParseError>
+//{
+//	ParseError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+//};
+
+NFT_DECLARE_ERROR_TRIO(Parse)
+
+//struct EventWarning: public Warning<EventWarning>
+//{
+//	EventWarning(std::string message, std::string function_name = ""): Warning(std::move(message), std::move(function_name)) {};
+//};
+//
+//struct EventError: public Error<EventError>
+//{
+//	EventError(std::string message, std::string function_name = ""): Error(std::move(message), std::move(function_name)) {};
+//};
+//
+//struct EventFatal: public FatalError<EventFatal>
+//{
+//	EventFatal(std::string message, std::string function_name = ""): FatalError(std::move(message), std::move(function_name)) {};
+//};
+//
+
+NFT_DECLARE_ERROR_TRIO(Event)
 
 struct ColorEncodingError: public Error<ColorEncodingError>
 {

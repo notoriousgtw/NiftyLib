@@ -22,9 +22,9 @@ Shader::Shader(Device* device, ShaderCode code) : device(device), code(code)
 {
 	// Validate input parameters
 	if (!device)
-		NFT_ERROR(VKFatal, "Device Is Null!");
+		NFT_ERROR(VulkanFatal, "Device Is Null!");
 	if (!code.data || code.size == 0)
-		NFT_ERROR(VKFatal, "Shader Code Is Null Or Empty!");
+		NFT_ERROR(VulkanFatal, "Shader Code Is Null Or Empty!");
 
 	// Initialize references
 	app		 = device->GetApp();
@@ -43,7 +43,7 @@ Shader::Shader(Device* device, ShaderCode code) : device(device), code(code)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Shader Module:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Shader Module:\n{}", err.what()));
 	}
 }
 

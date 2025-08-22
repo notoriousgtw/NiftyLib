@@ -8,10 +8,11 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <typeindex>
 #include <unordered_set>
 #include <vector>
 
-#include <GLFW/glfw3.h>
+#include "core/glfw_common.h"
 
 // #include "core/app.h"
 // #include "core/error.h"
@@ -31,16 +32,27 @@ class EventHandler
 
 	static void Init(App* app);
 
-	template<typename E>
+	const std::unordered_map<KeyEvent::Key, KeyEvent::Action>* GetKeyStates() { return &key_states; }
+	KeyEvent::Action										   GetKeyState(KeyEvent::Key key)
+	{
+		auto it = key_states.find(key);
+		if (it == key_states.end())
+			return KeyEvent::Action::Unknown;
+		else
+			return it->second;
+	}
+	void SetKeyState(KeyEvent::Key key, KeyEvent::Action action) { key_states[key] = action; }
+
+	template<typename Event>
 	void Attach(Observer* observer)
 	{
-		event_register.insert({ E::GetCode(), observer });
+		event_register.insert({ std::type_index(typeid(Event)), observer });
 	}
 
-	template<typename E>
+	template<typename Event>
 	void Detach(Observer* observer)
 	{
-		auto range = event_register.equal_range(E::GetCode());
+		auto range = event_register.equal_range(std::type_index(typeid(Event)));
 
 		for (auto it = range.first; it != range.second;)
 		{
@@ -51,18 +63,15 @@ class EventHandler
 		}
 	}
 
-	template<typename T, typename... Args>
+	template<typename Event, typename... Args>
 	void Notify(Args&&... args)
 	{
-		auto event = std::make_shared<T>(std::forward<Args>(args)...);
+		auto event = std::make_shared<Event>(std::forward<Args>(args)...);
 
-		auto range = event_register.equal_range(event->GetCode());
+		auto range = event_register.equal_range(std::type_index(typeid(Event)));
 
 		for (auto it = range.first; it != range.second; it++)
-		{
-			auto observer = it->second;
-			observer->Update(event.get());
-		}
+			it->second->Update(event.get());
 	}
 
 	// template<typename E>
@@ -80,22 +89,26 @@ class EventHandler
 
   private:
 	// static App*									 app;
-	std::multimap<std::string, Observer*> event_register;
+	std::multimap<std::type_index, Observer*>			event_register;
+	std::unordered_map<KeyEvent::Key, KeyEvent::Action> key_states;
 	// static std::unordered_set<std::string> event_codes;
 };
 
 class Observer
 {
   public:
+	Observer(EventHandler* handler);
 	virtual ~Observer() = default;
 
-	virtual void Update(IEventBase* source) = 0;
+	virtual void Update(IEvent* source) = 0;
 
 	template<typename E>
-	void Subscribe(EventHandler* handler)
+	void Subscribe()
 	{
-		handler->Attach<E>(this);
+		event_handler->Attach<E>(this);
 	}
+
+	EventHandler* event_handler = nullptr;
 };
 
 }	 // namespace nft

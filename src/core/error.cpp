@@ -18,9 +18,9 @@ void ErrorHandler::Init(App* app)
 	NFT_REGISTER_ERROR(GLFWWarning);
 	NFT_REGISTER_ERROR(GLFWError);
 	NFT_REGISTER_ERROR(GLFWFatal);
-	NFT_REGISTER_ERROR(VKWarning);
-	NFT_REGISTER_ERROR(VKError);
-	NFT_REGISTER_ERROR(VKFatal);
+	NFT_REGISTER_ERROR(VulkanWarning);
+	NFT_REGISTER_ERROR(VulkanError);
+	NFT_REGISTER_ERROR(VulkanFatal);
 	NFT_REGISTER_ERROR(FileError);
 	NFT_REGISTER_ERROR(ColorEncodingError);
 	app->GetLogger()->Debug("System Error Codes Successfully Registered!", "ErrorHandler");

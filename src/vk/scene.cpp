@@ -5,15 +5,18 @@
 
 namespace nft::vulkan
 {
-Scene::Scene(Surface* surface, vk::CommandBuffer main_command_buffer): surface(surface), device(surface->device)
+Scene::Scene(Surface* surface, vk::CommandBuffer main_command_buffer):
+	Observer(surface->window->event_handler.get()), surface(surface), device(surface->device)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device Is Null!");
+		NFT_ERROR(VulkanFatal, "Device Is Null!");
 	geometry_batcher = std::make_unique<GeometryBatcher>(device);
 
 	meshes.resize(1, new SimpleMesh());
 
-	Subscribe<KeyEvent>(surface->window->event_handler.get());
+	Subscribe<KeyEvent>();
+	Subscribe<MouseButtonEvent>();
+	Subscribe<MouseMoveEvent>();
 
 	ObjectData loaded_object;
 	loaded_object.mesh = meshes[0];
@@ -95,6 +98,7 @@ Scene::Scene(Surface* surface, vk::CommandBuffer main_command_buffer): surface(s
 	materials.push_back(default_material);
 	materials.push_back(default_textured_material);
 	camera_transforms = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	UpdateCameraFromOrbit();
 
 	geometry_batcher->CreateBuffers(main_command_buffer, device->vk_graphics_queue);
 }
@@ -102,6 +106,14 @@ Scene::Scene(Surface* surface, vk::CommandBuffer main_command_buffer): surface(s
 void Scene::UpdateCameraFromOrbit()
 {
 	// Calculate camera position based on orbital parameters
+	//if (selected_obj = UINT32_MAX)
+	//{
+	//	orbit_target = glm::vec3(0.0f, 1.0f, -2.0f);	// Default target position
+	//	selected_obj = 0;
+	//}
+	//else if (selected_obj > 0)
+	//	orbit_target = objects[selected_obj - 1].transform[3];	  // Use selected object's position
+
 	float x = orbit_target.x + orbit_distance * cos(orbit_angle_vertical) * cos(orbit_angle_horizontal);
 	float y = orbit_target.y + orbit_distance * sin(orbit_angle_vertical);
 	float z = orbit_target.z + orbit_distance * cos(orbit_angle_vertical) * sin(orbit_angle_horizontal);
@@ -116,33 +128,36 @@ void Scene::UpdateCameraFromOrbit()
 	camera_transforms = glm::inverse(view_matrix);
 }
 
-void Scene::Update(IEventBase* source)
+void Scene::Update(IEvent* source)
 {
-	if (source->GetCode() == KeyEvent::GetCode())
+
+	if (auto* key_event = dynamic_cast<KeyEvent*>(source))
 	{
-		KeyEvent* key_event = static_cast<KeyEvent*>(source);
-		if (key_event->action == GLFW_PRESS || key_event->action == GLFW_REPEAT)
+		if (key_event->action == KeyEvent::Action::Press || key_event->action == KeyEvent::Action::Repeat)
 		{
+			// device->app->GetLogger()->Debug(
+			//	std::format("Key Event: {} - {}", static_cast<uint32_t>(key_event->key),
+			// static_cast<uint32_t>(key_event->action)));
 			bool camera_changed = false;
 
 			switch (key_event->key)
 			{
 			// Orbital rotation controls
-			case GLFW_KEY_A:	// Rotate left
+			case KeyEvent::Key::A:	  // Rotate left
 				orbit_angle_horizontal -= glm::radians(orbit_speed);
 				camera_changed = true;
 				break;
-			case GLFW_KEY_D:	// Rotate right
+			case KeyEvent::Key::D:	  // Rotate right
 				orbit_angle_horizontal += glm::radians(orbit_speed);
 				camera_changed = true;
 				break;
-			case GLFW_KEY_W:	// Rotate up
+			case KeyEvent::Key::W:	  // Rotate up
 				orbit_angle_vertical += glm::radians(orbit_speed);
 				// Clamp vertical angle to prevent flipping
 				orbit_angle_vertical = glm::clamp(orbit_angle_vertical, glm::radians(-89.0f), glm::radians(89.0f));
 				camera_changed		 = true;
 				break;
-			case GLFW_KEY_S:	// Rotate down
+			case KeyEvent::Key::S:	  // Rotate down
 				orbit_angle_vertical -= glm::radians(orbit_speed);
 				// Clamp vertical angle to prevent flipping
 				orbit_angle_vertical = glm::clamp(orbit_angle_vertical, glm::radians(-89.0f), glm::radians(89.0f));
@@ -150,17 +165,17 @@ void Scene::Update(IEventBase* source)
 				break;
 
 			// Distance controls
-			case GLFW_KEY_Q:	// Zoom in
+			case KeyEvent::Key::Q:	  // Zoom in
 				orbit_distance = glm::max(0.5f, orbit_distance - 0.5f);
 				camera_changed = true;
 				break;
-			case GLFW_KEY_E:	// Zoom out
+			case KeyEvent::Key::E:	  // Zoom out
 				orbit_distance = glm::min(50.0f, orbit_distance + 0.5f);
 				camera_changed = true;
 				break;
 
 			// Reset camera
-			case GLFW_KEY_R:
+			case KeyEvent::Key::R:
 				orbit_distance		   = 5.0f;
 				orbit_angle_horizontal = 0.0f;
 				orbit_angle_vertical   = 0.0f;
@@ -176,8 +191,95 @@ void Scene::Update(IEventBase* source)
 			}
 		}
 	}
-	else if (source->GetCode() == Mouse)
+	else if (auto* mouse_event = dynamic_cast<MouseButtonEvent*>(source))
+	{
+		// device->app->GetLogger()->Debug(std::format("Mouse Button Event: {} - {}",
+		//									static_cast<uint32_t>(mouse_event->button),
+		//									static_cast<uint32_t>(mouse_event->action)));
+		if (mouse_event->action == MouseButtonEvent::Action::Press || mouse_event->action == MouseButtonEvent::Action::Repeat)
+		{
+			switch (mouse_event->button)
+			{
+			case MouseButtonEvent::Button::Left:
+				selected_obj = surface->PickObjectAtPosition(last_mouse_pos.x, last_mouse_pos.y);
+				orbit_target = objects[selected_obj - 1].transform[3];	  // Update orbit target to selected object position
+				UpdateCameraFromOrbit();
+				break;
+			case MouseButtonEvent::Button::Middle:
+				glm::vec2 mouse_pos = surface->window->GetMousePos();
+				if (event_handler->GetKeyState(KeyEvent::Key::LeftControl) != KeyEvent::Action::Release)
+				{
+					// Rotate camera around selected object
+					is_panning	   = true;
+					is_rotating	   = false;
+					last_mouse_pos = glm::vec2(mouse_pos.x, mouse_pos.y);
+				}
+				else
+				{
+					// Rotate camera around selected object
+					is_panning	   = false;
+					is_rotating	   = true;
+					last_mouse_pos = glm::vec2(mouse_pos.x, mouse_pos.y);
+				}
+				last_mouse_pos = glm::vec2(mouse_pos.x, mouse_pos.y);
+				break;
+			default: break;
+			}
+		}
+		else if (mouse_event->action == MouseButtonEvent::Action::Release)
+		{
+			switch (mouse_event->button)
+			{
+			case MouseButtonEvent::Button::Middle:
+				// Stop rotating camera
+				is_rotating = false;
+				is_panning	= false;
+				break;
+			case MouseButtonEvent::Button::Right:
+				// Stop panning camera
+				// is_panning = false;
+				break;
+			default: break;
+			}
+		}
+	}
+	else if (auto* mouse_move_event = dynamic_cast<MouseMoveEvent*>(source))
+	{
+		// device->app->GetLogger()->Debug(
+		//	std::format("Mouse Move Event: ({}, {})", mouse_move_event->pos.x, mouse_move_event->pos.y));
+		glm::vec2 delta = mouse_move_event->pos - last_mouse_pos;
+		last_mouse_pos	= mouse_move_event->pos;
+		if (is_rotating)
+		{
+			orbit_angle_horizontal += glm::radians(delta.x * 0.1f);
+			orbit_angle_vertical += glm::radians(delta.y * 0.1f);
+			// Clamp vertical angle to prevent flipping
+			orbit_angle_vertical = glm::clamp(orbit_angle_vertical, glm::radians(-89.0f), glm::radians(89.0f));
+			UpdateCameraFromOrbit();
+		}
+		else if (is_panning)
+		{
+			// Mouse sensitivity for panning
+			const float pan_sensitivity = 0.001f;
 
+			// Calculate camera's right and up vectors from the current camera transform
+			glm::vec3 camera_right = glm::normalize(glm::vec3(camera_transforms[0]));
+			glm::vec3 camera_up	   = glm::normalize(glm::vec3(camera_transforms[1]));
+
+			// Scale the movement based on distance to target for consistent feel
+			float distance_scale = orbit_distance * pan_sensitivity;
+
+			// Calculate pan offset in world space
+			glm::vec3 pan_offset = camera_right * (-delta.x * distance_scale) + camera_up * (delta.y * distance_scale);
+
+			// Apply pan offset to orbit target
+			orbit_target += pan_offset;
+
+			// Update camera transform
+			UpdateCameraFromOrbit();
+		}
+		last_mouse_pos = mouse_move_event->pos;
+	}
 }
 
 vk::VertexInputBindingDescription GetVertexInputBindingDescription()

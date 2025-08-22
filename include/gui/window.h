@@ -2,8 +2,7 @@
 
 #include "core/event_base.h"
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include "core/glfw_common.h"
 #include <string>
 #include <memory>
 
@@ -37,6 +36,14 @@ class Window
 	};
 	int	 GetWidth() const { return width; };
 	int	 GetHeight() const { return height; };
+
+	glm::vec2 GetMousePos() const
+	{
+		double x, y;
+		glfwGetCursorPos(window, &x, &y);
+		return glm::vec2(static_cast<float>(x), static_cast<float>(y));
+	};
+
 	void PollEvents() const;
 	void SwapBuffers() const { glfwSwapBuffers(window); };
 	bool ShouldClose() const { return glfwWindowShouldClose(window); };
@@ -51,6 +58,7 @@ class Window
 
 	static void KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void MouseButtonCallbackStatic(GLFWwindow* window, int button, int action, int mods);
+	static void MouseMoveCallbackStatic(GLFWwindow* window, double x, double y);
 
 	void Init();
 	friend class Surface;

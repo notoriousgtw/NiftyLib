@@ -7,7 +7,7 @@
 #include "vk/common.h"
 #include "vk/shader.h"
 #include "vk/util.h"
-#include <GLFW/glfw3.h>
+#include "core/glfw_common.h"
 
 namespace nft::vulkan
 {

@@ -26,7 +26,7 @@ void VulkanHandler::Init(App* app)
 {
     // Validate input parameters
     if (!app) 
-        NFT_ERROR(VKFatal, "App Is Null!");
+        NFT_ERROR(VulkanFatal, "App Is Null!");
     
     app->GetLogger()->Debug("Initializing Vulkan Handler...", "VKInit");
     VulkanHandler::app = app;
@@ -49,17 +49,17 @@ void VulkanHandler::Render()
 {
     // Validate that the system is properly initialized
     if (!app) {
-        NFT_ERROR(VKFatal, "VulkanHandler not initialized - App is null!");
+        NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - App is null!");
         return;
     }
     
     if (!device) {
-        NFT_ERROR(VKFatal, "VulkanHandler not initialized - Device is null!");
+        NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - Device is null!");
         return;
     }
     
     if (surfaces.empty() || !surfaces[0]) {
-        NFT_ERROR(VKFatal, "VulkanHandler not initialized - No primary surface available!");
+        NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - No primary surface available!");
         return;
     }
 
