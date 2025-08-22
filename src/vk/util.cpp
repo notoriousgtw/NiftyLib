@@ -110,15 +110,15 @@ void ColorBlendStage::Init()
 DescriptorSetLayout::DescriptorSetLayout(Surface* surface): surface(surface), device(surface->device)
 {
 	if (!surface)
-		NFT_ERROR(VKFatal, "Surface Is Null!");
+		NFT_ERROR(VulkanFatal, "Surface Is Null!");
 	if (!device)
-		NFT_ERROR(VKFatal, "Device Is Null!");
+		NFT_ERROR(VulkanFatal, "Device Is Null!");
 }
 
 DescriptorSetLayout::DescriptorSetLayout(Device* device): surface(nullptr), device(device)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device Is Null!");
+		NFT_ERROR(VulkanFatal, "Device Is Null!");
 }
 
 void DescriptorSetLayout::Init(std::vector<Binding> bindings)
@@ -147,7 +147,7 @@ void DescriptorSetLayout::Init(std::vector<Binding> bindings)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Descriptor Set Layout:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Descriptor Set Layout:\n{}", err.what()));
 	}
 
 	if (surface)
@@ -184,7 +184,7 @@ void DescriptorPool::Init(std::vector<Binding> bindings, uint32_t count)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Descriptor Pool:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Descriptor Pool:\n{}", err.what()));
 	}
 }
 
@@ -212,7 +212,7 @@ void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_la
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Pipeline Layout:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Pipeline Layout:\n{}", err.what()));
 	}
 }
 
@@ -282,7 +282,7 @@ void RenderPass::Init(vk::Format color_format, vk::Format depth_format)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Render Pass:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Render Pass:\n{}", err.what()));
 	}
 }
 

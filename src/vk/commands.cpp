@@ -15,7 +15,7 @@ void StartJob(vk::CommandBuffer command_buffer, vk::CommandBufferUsageFlags flag
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Begin Command Buffer:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Begin Command Buffer:\n{}", err.what()));
 	}
 }
 
@@ -29,7 +29,7 @@ void EndJob(vk::CommandBuffer command_buffer, vk::Queue queue)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Submit Command Buffer:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Submit Command Buffer:\n{}", err.what()));
 	}
 	queue.waitIdle();
 }

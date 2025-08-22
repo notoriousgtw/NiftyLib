@@ -67,8 +67,8 @@
 #include <vulkan/vulkan_metal.h>
 #endif
 
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE	   // Force depth range to [0, 1] for Vulkan compatibility
 
 // Forward declarations for Nifty framework

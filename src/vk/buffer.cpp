@@ -8,7 +8,7 @@ namespace nft::vulkan
 BufferManager::BufferManager(Device* device): device(device)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device pointer is null in BufferManager constructor.");
+		NFT_ERROR(VulkanFatal, "Device pointer is null in BufferManager constructor.");
 }
 
 BufferManager::~BufferManager()
@@ -31,7 +31,7 @@ BufferManager::~BufferManager()
 			}
 			catch (const vk::SystemError& err)
 			{
-				NFT_ERROR(VKFatal, std::format("Failed To Destroy Buffer:\n{}", err.what()));
+				NFT_ERROR(VulkanFatal, std::format("Failed To Destroy Buffer:\n{}", err.what()));
 			}
 		}
 	}
@@ -56,7 +56,7 @@ Buffer* BufferManager::CreateBuffer(size_t size, vk::BufferUsageFlags usage, vk:
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Buffer:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Buffer:\n{}", err.what()));
 	}
 
 	vk::MemoryRequirements memory_requirements = device->GetDevice().getBufferMemoryRequirements(buffer->vk_buffer);
@@ -78,7 +78,7 @@ Buffer* BufferManager::CreateBuffer(size_t size, vk::BufferUsageFlags usage, vk:
 			device->GetDevice().destroyBuffer(buffer->vk_buffer);
 			buffer->vk_buffer = VK_NULL_HANDLE;
 		}
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Buffer Memory:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Buffer Memory:\n{}", err.what()));
 	}
 	
 	try
@@ -98,7 +98,7 @@ Buffer* BufferManager::CreateBuffer(size_t size, vk::BufferUsageFlags usage, vk:
 			device->GetDevice().destroyBuffer(buffer->vk_buffer);
 			buffer->vk_buffer = VK_NULL_HANDLE;
 		}
-		NFT_ERROR(VKFatal, std::format("Failed To Bind Buffer Memory:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Bind Buffer Memory:\n{}", err.what()));
 	}
 
 	Buffer* buffer_ptr = buffer.get();
@@ -133,7 +133,7 @@ void BufferManager::DestroyBuffer(Buffer* buffer)
 		}
 		catch (const vk::SystemError& err)
 		{
-			NFT_ERROR(VKFatal, std::format("Failed To Destroy Buffer:\n{}", err.what()));
+			NFT_ERROR(VulkanFatal, std::format("Failed To Destroy Buffer:\n{}", err.what()));
 		}
 
 		// Remove from managed buffers
@@ -148,7 +148,7 @@ void BufferManager::CopyBuffer(Buffer*			 src_buffer,
 							   vk::Queue		 queue)
 {
 	if (!src_buffer || !dst_buffer || !src_buffer->vk_buffer || !dst_buffer->vk_buffer)
-		NFT_ERROR(VKFatal, "Invalid buffer pointers in CopyBuffer");
+		NFT_ERROR(VulkanFatal, "Invalid buffer pointers in CopyBuffer");
 
 	commands::StartJob(command_buffer, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
@@ -171,7 +171,7 @@ uint32_t BufferManager::FindMemoryType(uint32_t supported_memory_indices, vk::Me
 			return i;	 // Return the first matching memory type index
 		}
 	}
-	NFT_ERROR(VKFatal, "Failed To Find Suitable Memory Type: No memory type matches the requested properties.");
+	NFT_ERROR(VulkanFatal, "Failed To Find Suitable Memory Type: No memory type matches the requested properties.");
 }
 
 }	 // namespace nft::vulkan

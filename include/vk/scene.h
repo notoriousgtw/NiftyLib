@@ -23,7 +23,7 @@ class Scene: Observer
 	// Destructor
 	~Scene() = default;
 
-	void Update(IEventBase* source) override;
+	void Update(IEvent* source);
 
 	// Add an object to the scene
 	void AddObject(const ObjectData& object) { objects.push_back(object); }
@@ -42,6 +42,11 @@ class Scene: Observer
   private:
 	Surface* surface;
 	Device*	 device;	// Vulkan device
+
+	glm::vec2 last_mouse_pos;
+	uint32_t selected_obj = UINT32_MAX;
+	bool	  is_rotating = false;
+	bool	  is_panning = false;
 
 	glm::mat4 camera_transforms = glm::mat4(1.0f);	  // Camera transformation matrix
 

@@ -13,7 +13,7 @@
 #include "vk/handler.h"
 
 #include <vector>
-#include <GLFW/glfw3.h>
+#include "core/glfw_common.h"
 
 namespace nft::vulkan
 {
@@ -141,7 +141,7 @@ void Instance::CheckSupported()
 		}
 		if (!found)
 		{
-			NFT_ERROR(VKFatal, std::format("Instance Extension {} Is Not Supported!", extension));
+			NFT_ERROR(VulkanFatal, std::format("Instance Extension {} Is Not Supported!", extension));
 		}
 	}
 
@@ -172,7 +172,7 @@ void Instance::CheckSupported()
 		}
 		if (!found)
 		{
-			NFT_ERROR(VKFatal, std::format("Instance Layer {} Is Not Supported!", layer));
+			NFT_ERROR(VulkanFatal, std::format("Instance Layer {} Is Not Supported!", layer));
 		}
 	}
 }
@@ -195,7 +195,7 @@ void Instance::CreateInstance()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Instance:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Instance:\n{}", err.what()));
 	}
 	
 	// Update global default dispatch loader with instance
@@ -264,7 +264,7 @@ void Instance::SetupDebugMessenger()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Setup Debug Messenger:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Setup Debug Messenger:\n{}", err.what()));
 	}
 }
 

@@ -1,81 +1,32 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
+#include "core/glfw_common.h"
+#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 #include <typeinfo>
 #include <unordered_set>
 
-#if defined(__GNUG__)
-#include <cstdlib>
-#include <cxxabi.h>
-#endif
-
 namespace nft
 {
 
 // class App;
+class EventHandler;
 
-class IEventBase
+class IEvent
 {
   public:
-	virtual ~IEventBase() = default;
-	virtual std::string GetCode() const { return code; }
-	// virtual void		Notify()		= 0;
-	static std::string code;
+	IEvent(EventHandler* event_handler): event_handler(event_handler) {};
+	virtual ~IEvent() = default;
+	 //virtual void		Notify()		= 0;
+	EventHandler* event_handler = nullptr;
+
 };
 
-template<typename Derived>
-struct IEvent: public IEventBase
+struct KeyEvent: public IEvent
 {
-  public:
-	static std::string GetCode()
+	enum class Key : uint32_t
 	{
-		std::string name;
-		if (!name.empty())
-			return name;	// Return cached name if already set
-#if defined(__GNUG__)
-		int	  status	= 0;
-		char* demangled = abi::__cxa_demangle(typeid(Derived).name(), nullptr, nullptr, &status);
-		if (status == 0 && demangled)
-		{
-			name = demangled;
-			std::free(demangled);
-		}
-		else
-		{
-			name = typeid(Derived).name();
-		}
-#else
-		name = typeid(Derived).name();
-#endif
-		// Remove namespaces
-		size_t pos = name.rfind("::");
-		if (pos != std::string::npos)
-		{
-			name = name.substr(pos + 2);
-		}
-		// Remove "struct " or "class " prefix if present
-		const std::string struct_prefix = "struct ";
-		const std::string class_prefix	= "class ";
-		if (name.compare(0, struct_prefix.size(), struct_prefix) == 0)
-		{
-			name = name.substr(struct_prefix.size());
-		}
-		else if (name.compare(0, class_prefix.size(), class_prefix) == 0)
-		{
-			name = name.substr(class_prefix.size());
-		}
-		code = name;
-		return code;
-	}
-};
-
-struct KeyEvent: public IEvent<KeyEvent>
-{
-	enum class Key
-	{
-		Unknown		 = GLFW_KEY_UNKNOWN,
 		D0			 = GLFW_KEY_0,
 		D1			 = GLFW_KEY_1,
 		D2			 = GLFW_KEY_2,
@@ -107,7 +58,6 @@ struct KeyEvent: public IEvent<KeyEvent>
 		Grave		 = GLFW_KEY_GRAVE_ACCENT,
 		Minus		 = GLFW_KEY_MINUS,
 		Equal		 = GLFW_KEY_EQUAL,
-		Period		 = GLFW_KEY_PERIOD,
 		RightBracket = GLFW_KEY_RIGHT_BRACKET,
 		LeftBracket	 = GLFW_KEY_LEFT_BRACKET,
 		Backslash	 = GLFW_KEY_BACKSLASH,
@@ -188,45 +138,83 @@ struct KeyEvent: public IEvent<KeyEvent>
 		F22			 = GLFW_KEY_F22,
 		F23			 = GLFW_KEY_F23,
 		F24			 = GLFW_KEY_F24,
-		F25			 = GLFW_KEY_F25
+		F25			 = GLFW_KEY_F25,
+		Last		 = GLFW_KEY_LAST,
+		Unknown
 	};
 
-	enum class Action
+	enum class Action : uint32_t
 	{
-		Press	= 0,
-		Release = 1,
-		Repeat	= 2
+		Press	= 1,
+		Release = 0,
+		Repeat	= 2,
+		Unknown
 	};
 
-	enum class Modifier
+	typedef uint32_t ModifierFlags;
+
+	enum class Modifier : uint32_t
 	{
-		Shift	= 0x0001,
-		Control = 0x0002,
-		Alt		= 0x0004,
-		Super	= 0x0008
+		Null	 = 0x0000,
+		Shift	 = 0x0001,
+		Control	 = 0x0002,
+		Alt		 = 0x0004,
+		Super	 = 0x0008,
+		CapsLock = 0x0010,
+		NumLock	 = 0x0020
 	};
 
-	KeyEvent(int key, int scancode, int action, int mods): IEvent(), key(key), scancode(scancode), action(action), mods(mods) {};
+	KeyEvent(EventHandler* event_handler, uint32_t key, uint32_t action, uint32_t mods);
 
-	int key;
-	int scancode;
-	int action;
-	int mods;
+	Key			  key	 = Key::Unknown;
+	Action		  action = Action::Unknown;
+	ModifierFlags mods	 = 0;
 };
 
-struct MouseButtonEvent: public IEvent<MouseButtonEvent>
+inline uint32_t operator&(KeyEvent::ModifierFlags lhs, KeyEvent::Modifier rhs)
 {
-	MouseButtonEvent(int button, int action, int mods): IEvent(), button(button), action(action), mods(mods) {};
-	int button;
-	int action;
-	int mods;
+	return static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs);
+}
+
+inline KeyEvent::ModifierFlags operator|(KeyEvent::ModifierFlags lhs, KeyEvent::Modifier rhs)
+{
+	return static_cast<KeyEvent::ModifierFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+}
+
+struct MouseButtonEvent: public IEvent
+{
+	using Modifier		= KeyEvent::Modifier;
+	using ModifierFlags = KeyEvent::ModifierFlags;
+	using Action		= KeyEvent::Action;
+
+	enum class Button : uint32_t
+	{
+		Left	= GLFW_MOUSE_BUTTON_LEFT,
+		Right	= GLFW_MOUSE_BUTTON_RIGHT,
+		Middle	= GLFW_MOUSE_BUTTON_MIDDLE,
+		Button1 = GLFW_MOUSE_BUTTON_1,
+		Button2 = GLFW_MOUSE_BUTTON_2,
+		Button3 = GLFW_MOUSE_BUTTON_3,
+		Button4 = GLFW_MOUSE_BUTTON_4,
+		Button5 = GLFW_MOUSE_BUTTON_5,
+		Button6 = GLFW_MOUSE_BUTTON_6,
+		Button7 = GLFW_MOUSE_BUTTON_7,
+		Button8 = GLFW_MOUSE_BUTTON_8,
+		Last	= GLFW_MOUSE_BUTTON_LAST,
+		Unknown
+	};
+
+	MouseButtonEvent(EventHandler* event_handler, uint32_t button, uint32_t action, uint32_t mods);
+
+	Button		  button = Button::Unknown;
+	Action		  action = Action::Unknown;
+	ModifierFlags mods	 = 0;
 };
 
-struct MouseMoveEvent: public IEvent<MouseMoveEvent>
+struct MouseMoveEvent: public IEvent
 {
-	MouseMoveEvent(double x, double y): IEvent(), x(x), y(y) {};
-	double x;
-	double y;
+	MouseMoveEvent(EventHandler* event_handler, float x, float y);
+	glm::vec2 pos;
 };
 
 }	 // namespace nft

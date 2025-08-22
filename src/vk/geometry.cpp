@@ -63,7 +63,7 @@ void SimpleMesh::AddVertex(VertexData vertex)
 GeometryBatcher::GeometryBatcher(Device* device): device(device)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device Is Null!");
+		NFT_ERROR(VulkanFatal, "Device Is Null!");
 }
 
 void GeometryBatcher::AddGeometry(const IMesh* mesh)

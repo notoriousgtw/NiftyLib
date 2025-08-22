@@ -13,7 +13,7 @@
 #include "vk/image.h"
 #include "vk/scene.h"
 
-#include <GLFW/glfw3.h>
+#include "core/glfw_common.h"
 
 #include <../generated/picking_shader.frag.spv.h>
 #include <../generated/picking_shader.vert.spv.h>
@@ -55,11 +55,11 @@ Surface::Surface(Instance* instance, Device* device, Window* window):
 {
 	// Validate input parameters
 	if (!instance)
-		NFT_ERROR(VKFatal, "Instance is null!");
+		NFT_ERROR(VulkanFatal, "Instance is null!");
 	if (!device)
-		NFT_ERROR(VKFatal, "Device is null!");
+		NFT_ERROR(VulkanFatal, "Device is null!");
 	if (!window)
-		NFT_ERROR(VKFatal, "Window is null!");
+		NFT_ERROR(VulkanFatal, "Window is null!");
 
 	app = instance->GetApp();
 
@@ -192,7 +192,7 @@ void Surface::CreateSwapchain()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Swapchain:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Swapchain:\n{}", err.what()));
 	}
 	// Get swapchain images and create image views
 	// Get swapchain images and create image views
@@ -393,7 +393,7 @@ void Surface::CreatePipeline()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Graphics Pipeline:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Graphics Pipeline:\n{}", err.what()));
 	}
 
 	app->GetLogger()->Debug("Pipeline Created Successfully!", "VKInit");
@@ -404,7 +404,7 @@ void Surface::CreateTextureDescriptorSet()
 	// Create texture array descriptor set
 	if (scene->textures.empty())
 	{
-		NFT_ERROR(VKFatal, "No textures available for texture array descriptor set!");
+		NFT_ERROR(VulkanFatal, "No textures available for texture array descriptor set!");
 		return;
 	}
 
@@ -418,7 +418,7 @@ void Surface::CreateTextureDescriptorSet()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Texture Array Descriptor Set:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Texture Array Descriptor Set:\n{}", err.what()));
 	}
 
 	// Create array of descriptor image infos
@@ -483,7 +483,7 @@ void Surface::CreateFrameBuffers()
 		}
 		catch (const vk::SystemError& err)
 		{
-			NFT_ERROR(VKFatal, std::format("Failed To Create Framebuffer {}:\n{}", i, err.what()));
+			NFT_ERROR(VulkanFatal, std::format("Failed To Create Framebuffer {}:\n{}", i, err.what()));
 		}
 		i++;
 	}
@@ -501,7 +501,7 @@ void Surface::CreateCommandPool()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Command Pool:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Command Pool:\n{}", err.what()));
 	}
 
 	// Allocate main command buffer
@@ -514,7 +514,7 @@ void Surface::CreateCommandPool()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Main Command Buffer:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Main Command Buffer:\n{}", err.what()));
 	}
 }
 
@@ -539,7 +539,7 @@ void Surface::PrepareScene(vk::CommandBuffer command_buffer)
 	// Prepare the scene for rendering
 	if (!scene)
 	{
-		NFT_ERROR(VKFatal, "Scene is not set for rendering!");
+		NFT_ERROR(VulkanFatal, "Scene is not set for rendering!");
 		return;
 	}
 
@@ -598,7 +598,7 @@ void Surface::Render()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Submit Draw Command Buffer:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Submit Draw Command Buffer:\n{}", err.what()));
 	}
 
 	vk::PresentInfoKHR present_info = vk::PresentInfoKHR()
@@ -650,8 +650,8 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 
 	PrepareScene(command_buffer);
 
-	app->GetLogger()->Debug(std::format("Total objects: {}", scene->objects.size()), "VKRender");
-	app->GetLogger()->Debug(std::format("Mesh data entries: {}", scene->geometry_batcher->mesh_data.size()), "VKRender");
+	//app->GetLogger()->Debug(std::format("Total objects: {}", scene->objects.size()), "VKRender");
+	//app->GetLogger()->Debug(std::format("Mesh data entries: {}", scene->geometry_batcher->mesh_data.size()), "VKRender");
 
 	const auto& meshes = scene->geometry_batcher->mesh_data;
 
@@ -665,10 +665,10 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 		uint32_t index_count  = static_cast<uint32_t>(mesh_data.index_size);
 		uint32_t first_index  = static_cast<uint32_t>(mesh_data.index_offset);
 
-		app->GetLogger()->Debug(
-			std::format(
-				"Mesh vertex data: count={}, offset={}, data_size={}", vertex_count, first_vertex, mesh->vertices->size()),
-			"VKRender");
+		//app->GetLogger()->Debug(
+		//	std::format(
+		//		"Mesh vertex data: count={}, offset={}, data_size={}", vertex_count, first_vertex, mesh->vertices->size()),
+		//	"VKRender");
 
 		// Draw each object separately with per-object material push constants
 		for (uint32_t instance_id = 0; instance_id < scene->objects.size(); ++instance_id)
@@ -677,12 +677,12 @@ void Surface::RecordDrawCommands(Frame& frame, uint32_t image_index)
 			{
 				const auto& object = scene->objects[instance_id];
 
-				app->GetLogger()->Debug(std::format("Drawing object {}: vertex_count={}, first_vertex={}, instance_id={}",
-													instance_id,
-													vertex_count,
-													first_vertex,
-													instance_id),
-										"VKRender");
+				//app->GetLogger()->Debug(std::format("Drawing object {}: vertex_count={}, first_vertex={}, instance_id={}",
+				//									instance_id,
+				//									vertex_count,
+				//									first_vertex,
+				//									instance_id),
+				//						"VKRender");
 
 				// Create material push constants for this object
 				MaterialPushConstants material_push;
@@ -817,12 +817,12 @@ void Surface::Cleanup()
 
 void Surface::SelectFormat()
 {
-	NFT_ERROR(VKFatal, "Requested Format Not Supported!");
+	NFT_ERROR(VulkanFatal, "Requested Format Not Supported!");
 }
 
 void Surface::SelectPresentMode()
 {
-	NFT_ERROR(VKFatal, "Requested Present Mode Not Supported!");
+	NFT_ERROR(VulkanFatal, "Requested Present Mode Not Supported!");
 }
 
 //=============================================================================
@@ -1010,9 +1010,9 @@ void Surface::LogSupportDetails()
 void Surface::Frame::Init(Surface* surface, Scene* scene)
 {
 	if (!surface)
-		NFT_ERROR(VKFatal, "Surface pointer is null!");
+		NFT_ERROR(VulkanFatal, "Surface pointer is null!");
 	if (!scene)
-		NFT_ERROR(VKFatal, "Scene pointer is null!");
+		NFT_ERROR(VulkanFatal, "Scene pointer is null!");
 	this->surface	= surface;
 	this->device	= surface->device;
 	this->scene		= scene;
@@ -1023,7 +1023,7 @@ void Surface::Frame::Init(Surface* surface, Scene* scene)
 void Surface::Frame::MakeDescriptorResources()
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device pointer is null!");
+		NFT_ERROR(VulkanFatal, "Device pointer is null!");
 	camera_data_buffer = device->buffer_manager->CreateBuffer(sizeof(UniformBufferObject),
 															  vk::BufferUsageFlagBits::eUniformBuffer,
 															  vk::MemoryPropertyFlagBits::eHostVisible |
@@ -1052,12 +1052,12 @@ void Surface::Frame::MakeDescriptorResources()
 void Surface::Frame::AllocateDescriptorResources()
 {
 	if (!surface)
-		NFT_ERROR(VKFatal, "Surface pointer is null!");
+		NFT_ERROR(VulkanFatal, "Surface pointer is null!");
 	if (!device)
-		NFT_ERROR(VKFatal, "Device pointer is null!");
+		NFT_ERROR(VulkanFatal, "Device pointer is null!");
 	if (!camera_data_buffer)
 	{
-		NFT_ERROR(VKFatal, "Camera data buffer is not initialized!");
+		NFT_ERROR(VulkanFatal, "Camera data buffer is not initialized!");
 		return;
 	}
 
@@ -1072,16 +1072,16 @@ void Surface::Frame::AllocateDescriptorResources()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Frame Descriptor Set:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Frame Descriptor Set:\n{}", err.what()));
 	}
 }
 
 void Surface::Frame::MakeDepthResources()
 {
 	if (!surface)
-		NFT_ERROR(VKFatal, "Surface pointer is null!");
+		NFT_ERROR(VulkanFatal, "Surface pointer is null!");
 	if (!device)
-		NFT_ERROR(VKFatal, "Device pointer is null!");
+		NFT_ERROR(VulkanFatal, "Device pointer is null!");
 
 	// vk_depth_buffer			= device->buffer_manager->CreateImage(surface->vk_swapchain_info.imageExtent.width,
 	//													  surface->vk_swapchain_info.imageExtent.height,
@@ -1094,11 +1094,11 @@ void Surface::Frame::MakeDepthResources()
 void Surface::Frame::Prepare(glm::mat4 camera_transforms)
 {
 	if (!surface)
-		NFT_ERROR(VKFatal, "Surface pointer is null!");
+		NFT_ERROR(VulkanFatal, "Surface pointer is null!");
 	if (!scene)
-		NFT_ERROR(VKFatal, "Scene pointer is null!");
+		NFT_ERROR(VulkanFatal, "Scene pointer is null!");
 	if (!camera_data_buffer)
-		NFT_ERROR(VKFatal, "Camera data buffer is not initialized!");
+		NFT_ERROR(VulkanFatal, "Camera data buffer is not initialized!");
 
 	glm::vec3 eye = glm::vec3(camera_transforms[3]);
 
@@ -1172,7 +1172,7 @@ void Surface::Frame::Prepare(glm::mat4 camera_transforms)
 void Surface::Frame::Cleanup()
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device pointer is null!");
+		NFT_ERROR(VulkanFatal, "Device pointer is null!");
 	if (vk_frame_buffer)
 		device->vk_device.destroyFramebuffer(vk_frame_buffer);
 	if (in_flight_fence)
@@ -1245,7 +1245,7 @@ void ObjectPicker::CreateCommandPool()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Command Pool:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Command Pool:\n{}", err.what()));
 	}
 
 	// Allocate main command buffer
@@ -1258,7 +1258,7 @@ void ObjectPicker::CreateCommandPool()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Main Command Buffer:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Main Command Buffer:\n{}", err.what()));
 	}
 }
 

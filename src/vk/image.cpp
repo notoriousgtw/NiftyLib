@@ -12,7 +12,7 @@ namespace nft::vulkan
 Image::Image(Device* device): device(device), width(0), height(0), channels(0), pixels(nullptr)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device is null!");
+		NFT_ERROR(VulkanFatal, "Device is null!");
 }
 
 Image::~Image()
@@ -94,27 +94,27 @@ Image& Image::operator=(Image&& other) noexcept
 void Image::SetDevice(Device* device)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device is null!");
+		NFT_ERROR(VulkanFatal, "Device is null!");
 	this->device = device;
 }
 
 void Image::Init(vk::Image vk_image, vk::ImageCreateInfo vk_image_info)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device is null!");
+		NFT_ERROR(VulkanFatal, "Device is null!");
 	if (!vk_image)
-		NFT_ERROR(VKFatal, "Vulkan image handle is null!");
+		NFT_ERROR(VulkanFatal, "Vulkan image handle is null!");
 	this->vk_image = vk_image;
 	
 	this->vk_image_info = vk_image_info;
 	this->width			= vk_image_info.extent.width;
 	this->height		= vk_image_info.extent.height;
 	if (width <= 0 || height <= 0)
-		NFT_ERROR(VKFatal, "Width and height must be greater than zero!");
+		NFT_ERROR(VulkanFatal, "Width and height must be greater than zero!");
 
 	this->tiling = vk_image_info.tiling;
 	if (tiling != vk::ImageTiling::eOptimal && tiling != vk::ImageTiling::eLinear)
-		NFT_ERROR(VKFatal, "Invalid image tiling specified!");
+		NFT_ERROR(VulkanFatal, "Invalid image tiling specified!");
 
 	this->usage = vk_image_info.usage;
 
@@ -140,17 +140,17 @@ void Image::Init(vk::Image vk_image, vk::ImageCreateInfo vk_image_info)
 void Image::Init(vk::ImageCreateInfo vk_image_info, vk::MemoryPropertyFlags memory_properties)
 {
 	if (!device)
-		NFT_ERROR(VKFatal, "Device is null!");
+		NFT_ERROR(VulkanFatal, "Device is null!");
 
 	this->vk_image_info = vk_image_info;
 	this->width			= vk_image_info.extent.width;
 	this->height		= vk_image_info.extent.height;
 	if (width <= 0 || height <= 0)
-		NFT_ERROR(VKFatal, "Width and height must be greater than zero!");
+		NFT_ERROR(VulkanFatal, "Width and height must be greater than zero!");
 
 	this->tiling = vk_image_info.tiling;
 	if (tiling != vk::ImageTiling::eOptimal && tiling != vk::ImageTiling::eLinear)
-		NFT_ERROR(VKFatal, "Invalid image tiling specified!");
+		NFT_ERROR(VulkanFatal, "Invalid image tiling specified!");
 
 	this->usage = vk_image_info.usage;
 
@@ -166,7 +166,7 @@ void Image::Init(vk::ImageCreateInfo vk_image_info, vk::MemoryPropertyFlags memo
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Image:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Image:\n{}", err.what()));
 	}
 
 	if (vk_subresource_range == vk::ImageSubresourceRange())
@@ -217,7 +217,7 @@ void Image::InitMemory(vk::MemoryPropertyFlags memory_properties)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Image Memory:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Image Memory:\n{}", err.what()));
 	}
 	memory_bound = true;
 }
@@ -225,9 +225,9 @@ void Image::InitMemory(vk::MemoryPropertyFlags memory_properties)
 void Image::SetupCommands(vk::CommandBuffer command_buffer, vk::Queue queue)
 {
 	if (!command_buffer)
-		NFT_ERROR(VKFatal, "Command buffer is null!");
+		NFT_ERROR(VulkanFatal, "Command buffer is null!");
 	if (!queue)
-		NFT_ERROR(VKFatal, "Queue is null!");
+		NFT_ERROR(VulkanFatal, "Queue is null!");
 	vk_command_buffer = command_buffer;
 	vk_queue		  = queue;
 	commands_setup	  = true;
@@ -236,11 +236,11 @@ void Image::SetupCommands(vk::CommandBuffer command_buffer, vk::Queue queue)
 void Image::UploadPixelData(const void* pixels, size_t size, vk::ImageLayout final_layout)
 {
 	if (!image_initialized)
-		NFT_ERROR(VKFatal, "Image is not initialized! Call Init() before uploading pixel data.");
+		NFT_ERROR(VulkanFatal, "Image is not initialized! Call Init() before uploading pixel data.");
 	if (!pixels)
-		NFT_ERROR(VKFatal, "Pixel data is null!");
+		NFT_ERROR(VulkanFatal, "Pixel data is null!");
 	if (size < 1)
-		NFT_ERROR(VKFatal, "Size of pixel data must be greater than zero!");
+		NFT_ERROR(VulkanFatal, "Size of pixel data must be greater than zero!");
 	// Create staging buffer
 	Buffer* staging_buffer = device->buffer_manager->CreateBuffer(size,
 																  vk::BufferUsageFlagBits::eTransferSrc,
@@ -273,11 +273,11 @@ void Image::UploadPixelData(const void* pixels, size_t size, vk::ImageLayout fin
 void Image::AllocateDescriptorSet()
 {
 	if (!image_initialized)
-		NFT_ERROR(VKFatal, "Image is not initialized! Call Init() before allocating a descriptor set.");
+		NFT_ERROR(VulkanFatal, "Image is not initialized! Call Init() before allocating a descriptor set.");
 	if (!descriptor_set_layout)
-		NFT_ERROR(VKFatal, "Descriptor set layout is null!");
+		NFT_ERROR(VulkanFatal, "Descriptor set layout is null!");
 	if (!descriptor_pool)
-		NFT_ERROR(VKFatal, "Descriptor pool is null!");
+		NFT_ERROR(VulkanFatal, "Descriptor pool is null!");
 	vk_descriptor_set_alloc_info = vk::DescriptorSetAllocateInfo()
 									   .setDescriptorPool(descriptor_pool->vk_descriptor_pool)
 									   .setDescriptorSetCount(1)
@@ -288,14 +288,14 @@ void Image::AllocateDescriptorSet()
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Descriptor Set:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Descriptor Set:\n{}", err.what()));
 	}
 }
 
 void Image::TransistionLayout(vk::ImageLayout old_layout, vk::ImageLayout new_layout)
 {
 	if (!image_initialized)
-		NFT_ERROR(VKFatal, "Image is not initialized! Call Init() before transitioning layout.");
+		NFT_ERROR(VulkanFatal, "Image is not initialized! Call Init() before transitioning layout.");
 
 	commands::StartJob(vk_command_buffer, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
@@ -324,7 +324,7 @@ void Image::TransistionLayout(vk::ImageLayout old_layout, vk::ImageLayout new_la
 		dst_stage = vk::PipelineStageFlagBits::eFragmentShader;
 	}
 	else
-		NFT_ERROR(VKFatal, "Unsupported layout transition!");
+		NFT_ERROR(VulkanFatal, "Unsupported layout transition!");
 
 	vk_command_buffer.pipelineBarrier(
 		src_stage, dst_stage, vk::DependencyFlags(), 0, nullptr, 0, nullptr, 1, &image_memory_barrier);
@@ -352,9 +352,9 @@ void Image::CopyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width
 void Image::CreateImageView(vk::Format format)
 {
 	if (!image_initialized)
-		NFT_ERROR(VKFatal, "Image is not initialized! Call Init() before creating an image view.");
+		NFT_ERROR(VulkanFatal, "Image is not initialized! Call Init() before creating an image view.");
 	if (image_view_created)
-		NFT_ERROR(VKFatal, "Image view is already created! Call Cleanup() before creating a new image view.");
+		NFT_ERROR(VulkanFatal, "Image view is already created! Call Cleanup() before creating a new image view.");
 
 	vk_image_view_info = vk::ImageViewCreateInfo()
 							 .setFlags(vk::ImageViewCreateFlags())
@@ -371,7 +371,7 @@ void Image::CreateImageView(vk::Format format)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Image View:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Image View:\n{}", err.what()));
 	}
 }
 
@@ -381,7 +381,7 @@ void Image::Bind(vk::CommandBuffer	   command_buffer,
 				 uint32_t			   set_index)
 {
 	if (!descriptor_set_created)
-		NFT_ERROR(VKFatal, "Descriptor set is not created! Derived classes are responsible for creating descriptor_sets.");
+		NFT_ERROR(VulkanFatal, "Descriptor set is not created! Derived classes are responsible for creating descriptor_sets.");
 
 	command_buffer.bindDescriptorSets(bind_point, pipeline_layout, set_index, vk_descriptor_set, nullptr);
 }
@@ -396,11 +396,11 @@ Texture::~Texture()
 void Texture::LoadFile(std::string file_path)
 {
 	if (!commands_setup)
-		NFT_ERROR(VKFatal, "Commands are not setup! Call SetupCommands() before loading a file.");
+		NFT_ERROR(VulkanFatal, "Commands are not setup! Call SetupCommands() before loading a file.");
 
 	pixels = stbi_load(file_path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
 	if (!pixels)
-		NFT_ERROR(VKFatal, "Failed To Load Image File: " + file_path);
+		NFT_ERROR(VulkanFatal, "Failed To Load Image File: " + file_path);
 
 	Init(vk::ImageCreateInfo()
 			 .setFlags(vk::ImageCreateFlagBits())
@@ -445,22 +445,22 @@ void Texture::CreateSampler(vk::SamplerCreateInfo sampler_info)
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Create Sampler:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Create Sampler:\n{}", err.what()));
 	}
 }
 
 void Texture::CreateDescriptorSet(vk::DescriptorSetLayout external_layout, vk::DescriptorPool external_pool)
 {
 	if (!sampler_created)
-		NFT_ERROR(VKFatal, "Sampler is not created! Call CreateSampler() before creating a descriptor set.");
+		NFT_ERROR(VulkanFatal, "Sampler is not created! Call CreateSampler() before creating a descriptor set.");
 	if (!image_created)
-		NFT_ERROR(VKFatal, "Image is not created! Call UploadPixelData() before creating a descriptor set.");
+		NFT_ERROR(VulkanFatal, "Image is not created! Call UploadPixelData() before creating a descriptor set.");
 	if (!image_view_created)
-		NFT_ERROR(VKFatal, "Image view is not created! Call CreateImageView() before creating a descriptor set.");
+		NFT_ERROR(VulkanFatal, "Image view is not created! Call CreateImageView() before creating a descriptor set.");
 	if (!external_layout)
-		NFT_ERROR(VKFatal, "Descriptor set layout is null!");
+		NFT_ERROR(VulkanFatal, "Descriptor set layout is null!");
 	if (!external_pool)
-		NFT_ERROR(VKFatal, "Descriptor pool is null!");
+		NFT_ERROR(VulkanFatal, "Descriptor pool is null!");
 
 	vk::DescriptorSetAllocateInfo alloc_info = vk::DescriptorSetAllocateInfo()
 												   .setDescriptorPool(external_pool)
@@ -473,7 +473,7 @@ void Texture::CreateDescriptorSet(vk::DescriptorSetLayout external_layout, vk::D
 	}
 	catch (const vk::SystemError& err)
 	{
-		NFT_ERROR(VKFatal, std::format("Failed To Allocate Texture Descriptor Set:\n{}", err.what()));
+		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Texture Descriptor Set:\n{}", err.what()));
 	}
 
 	vk::DescriptorImageInfo image_info = vk::DescriptorImageInfo()
@@ -498,7 +498,7 @@ void Texture::Use(vk::CommandBuffer		command_buffer,
 				  uint32_t				set_index)
 {
 	if (!descriptor_set_created)
-		NFT_ERROR(VKFatal, "Descriptor set is not created! Call CreateDescriptorSet() before using the texture.");
+		NFT_ERROR(VulkanFatal, "Descriptor set is not created! Call CreateDescriptorSet() before using the texture.");
 	Bind(command_buffer, bind_point, pipeline_layout, set_index);
 }
 
