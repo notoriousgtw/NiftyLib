@@ -6,6 +6,11 @@
 #include "vk/geometry.h"
 #include "vk/image.h"
 
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+
 namespace nft::vulkan
 {
 struct ObjectData
@@ -13,6 +18,49 @@ struct ObjectData
 	IMesh*	  mesh;
 	glm::mat4 transform;
 	uint32_t  material_index = 0;	 // Index of the material in the materials vector
+};
+
+class Camera
+{
+	public:
+	Camera() = default;
+	~Camera() = default;
+	glm::mat4 GetViewMatrix() const { return glm::inverse(transform); }
+	glm::mat4 GetProjectionMatrix(float aspect_ratio) const
+	{
+		return glm::perspective(glm::radians(fov), aspect_ratio, near_plane, far_plane);
+	}
+	void SetPosition(const glm::vec3& position) { transform[3] = glm::vec4(position, 1.0f); }
+	glm::vec3 GetPosition() const { return glm::vec3(transform[3]); }
+	void SetRotation(const glm::vec3& rotation)
+	{
+		transform = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), glm::vec3(1, 0, 0));
+		transform = glm::rotate(transform, glm::radians(rotation.y), glm::vec3(0, 1, 0));
+		transform = glm::rotate(transform, glm::radians(rotation.z), glm::vec3(0, 0, 1));
+		transform[3] = glm::vec4(GetPosition(), 1.0f);	 // Preserve position
+	}
+	glm::vec3 GetRotation() const
+	{
+		// Extract Euler angles from the rotation matrix
+		glm::vec3 scale;
+		glm::quat  orientation;
+		glm::vec3 translation;
+		glm::vec3 skew;
+		glm::vec4 perspective;
+		glm::decompose(transform, scale, orientation, translation, skew, perspective);
+		return glm::degrees(glm::eulerAngles(orientation));
+	}
+	void SetFOV(float fov_degrees) { fov = fov_degrees; }
+	float GetFOV() const { return fov; }
+	void SetNearPlane(float near_plane_distance) { near_plane = near_plane_distance; }
+	float GetNearPlane() const { return near_plane; }
+	void SetFarPlane(float far_plane_distance) { far_plane = far_plane_distance; }
+	float GetFarPlane() const { return far_plane; }
+  private:
+	glm::mat4 transform   = glm::mat4(1.0f);	   // Camera transformation matrix
+	float	  fov		 = 45.0f;				   // Field of view in degrees
+	float	  near_plane   = 0.1f;				   // Near clipping plane
+	float	  far_plane	  = 100.0f;					// Far clipping plane
 };
 
 class Scene: Observer

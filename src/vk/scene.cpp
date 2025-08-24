@@ -201,9 +201,10 @@ void Scene::Update(IEvent* source)
 			switch (mouse_event->button)
 			{
 			case MouseButtonEvent::Button::Left:
-				selected_obj = surface->PickObjectAtPosition(last_mouse_pos.x, last_mouse_pos.y);
-				orbit_target = objects[selected_obj - 1].transform[3];	  // Update orbit target to selected object position
-				UpdateCameraFromOrbit();
+				//selected_obj = surface->PickObjectAtPosition(last_mouse_pos.x, last_mouse_pos.y);
+				//if (selected_obj)
+				//	orbit_target = objects[selected_obj - 1].transform[3];	  // Update orbit target to selected object position
+				//UpdateCameraFromOrbit();
 				break;
 			case MouseButtonEvent::Button::Middle:
 				glm::vec2 mouse_pos = surface->window->GetMousePos();
