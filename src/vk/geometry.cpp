@@ -68,23 +68,38 @@ GeometryBatcher::GeometryBatcher(Device* device): device(device)
 
 void GeometryBatcher::AddGeometry(const IMesh* mesh)
 {
-	// Calculate vertex count - each vertex has 12 floats (x, y, z, r, g, b, a, u, v)
-	size_t vertex_count = mesh->vertices->size() / 12;
-	// Calculate current vertex offset in the batched buffer (number of vertices, not bytes)
-	size_t vertex_offset = vertex_data.size() / 12;
-
-	size_t index_count	= 0;	// Default to 0 if no indices are present
-	size_t index_offset = 0;	// Default to 0 if no indices are present
-	// If indices are present, we need to calculate based on indices
-	if (!mesh->indices->empty())
+	if (!mesh)
 	{
-		index_count	 = mesh->indices->size();
-		index_offset = index_data.size();	 // Offset in the batched buffer
+		NFT_ERROR(VulkanFatal, "Mesh pointer is null!");
+		return;
 	}
 
-	mesh_data[mesh] = { vertex_offset, vertex_count, index_offset, index_count };
-	vertex_data.insert(vertex_data.end(), mesh->vertices->begin(), mesh->vertices->end());
-	index_data.insert(index_data.end(), mesh->indices->begin(), mesh->indices->end());
+	MeshData mesh_data_entry;
+	mesh_data_entry.offset = current_offset;
+
+	// Use getter methods instead of direct access
+	const auto& vertices = mesh->GetVertices();
+	const auto& indices = mesh->GetIndices();
+	
+	size_t vertex_count = vertices.size() / 12;
+	mesh_data_entry.size = vertex_count;
+
+	mesh_data_entry.index_offset = index_offset;
+	mesh_data_entry.index_size = 0;
+	
+	if (!indices.empty())
+	{
+		size_t index_count = indices.size();
+		mesh_data_entry.index_size = index_count;
+		index_offset += index_count;
+	}
+
+	vertex_data.insert(vertex_data.end(), vertices.begin(), vertices.end());
+	index_data.insert(index_data.end(), indices.begin(), indices.end());
+
+	mesh_data[mesh] = mesh_data_entry;
+
+	current_offset += vertex_count;
 }
 
 // void GeometryBatcher::Batch()

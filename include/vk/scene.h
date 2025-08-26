@@ -63,7 +63,7 @@ class Camera
 	float	  far_plane	  = 100.0f;					// Far clipping plane
 };
 
-class Scene: Observer
+class Scene
 {
   public:
 	// Constructor
@@ -71,21 +71,31 @@ class Scene: Observer
 	// Destructor
 	~Scene() = default;
 
-	void Update(IEvent* source);
+	//void Update(IEvent* source);
 
 	// Add an object to the scene
 	void AddObject(const ObjectData& object) { objects.push_back(object); }
 
-	// Get all objects in the scene
+	// Public accessors instead of friend declarations
 	const std::vector<ObjectData>& GetObjects() const { return objects; }
-
+	std::vector<ObjectData>& GetObjectsRef() { return objects; }
+	
 	// Add a material to the scene
 	void AddMaterial(const Material& material) { materials.push_back(material); }
 	// Get all materials in the scene
 	const std::vector<Material>& GetMaterials() const { return materials; }
+	std::vector<Material>& GetMaterialsRef() { return materials; }
 
 	// Get the geometry batcher
-	const GeometryBatcher* GetGeometryBatcher() { return geometry_batcher.get(); }
+	const GeometryBatcher* GetGeometryBatcher() const { return geometry_batcher.get(); }
+	GeometryBatcher* GetGeometryBatcherRef() { return geometry_batcher.get(); }
+
+	// Public access to textures for pipeline
+	const std::vector<Texture>& GetTextures() const { return textures; }
+	std::vector<Texture>& GetTexturesRef() { return textures; }
+
+	// Public access to camera transforms
+	glm::mat4 camera_transforms = glm::mat4(1.0f);
 
   private:
 	Surface* surface;
@@ -95,8 +105,6 @@ class Scene: Observer
 	uint32_t selected_obj = UINT32_MAX;
 	bool	  is_rotating = false;
 	bool	  is_panning = false;
-
-	glm::mat4 camera_transforms = glm::mat4(1.0f);	  // Camera transformation matrix
 
 	// Orbital camera variables
 	glm::vec3 orbit_target			 = glm::vec3(0.0f, 1.0f, -3.0f);	   // Point to orbit around
@@ -113,9 +121,8 @@ class Scene: Observer
 	std::vector<IMesh*>				 meshes;
 	std::vector<Texture>			 textures;
 	std::vector<Material>			 materials;	   // List of materials in the scene
-
-	friend class Surface;
 };
+
 vk::VertexInputBindingDescription				 GetVertexInputBindingDescription();
 std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescriptions();
 

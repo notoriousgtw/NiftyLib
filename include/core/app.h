@@ -42,7 +42,7 @@ class App
 	std::string	 GetName() { return name; }
 	Window* GetMainWindow() { return main_window; }
 
-  private:
+  protected:
 	std::string name;
 	Logger		logger;
 	// vk::Instance instance { nullptr };

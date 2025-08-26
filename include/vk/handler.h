@@ -47,8 +47,10 @@ class VulkanHandler
 	static void Render();
 	static void ShutDown();
 
+	inline bool IsInitialized() const { return is_inititialized; }
+
 	// Surface management
-	static void AddSurface(Window* window);
+	static std::shared_ptr<Surface> AddSurface(Window* window);
 	// static Surface* GetPrimarySurface();
 
 	//=========================================================================
@@ -61,7 +63,9 @@ class VulkanHandler
 	// Vulkan system objects
 	static std::unique_ptr<Instance>			 instance;
 	static std::unique_ptr<Device>				 device;
-	static std::vector<std::unique_ptr<Surface>> surfaces;
+	static std::vector<std::shared_ptr<Surface>> surfaces;
+  private:
+	bool is_inititialized = false;
 };
 
 }	 // namespace nft::vulkan

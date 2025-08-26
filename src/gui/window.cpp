@@ -16,7 +16,7 @@ void Window::Init()
 	window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
 	if (window == NULL)
 		NFT_ERROR(GLFWFatal, std::format("Failed to create window: \"{}\"", title));
-	event_handler = std::make_unique<EventHandler>();
+	event_handler = std::make_unique<Event::EventHandler>();
 	vulkan::VulkanHandler::AddSurface(this);
 
 	glfwSetWindowUserPointer(window, this);
@@ -24,6 +24,15 @@ void Window::Init()
 	glfwSetMouseButtonCallback(window, MouseButtonCallbackStatic);
 	glfwSetCursorPosCallback(window, MouseMoveCallbackStatic);
 }
+
+//void Window::CreateWindowSurface()
+//{
+//	if (!window)
+//		NFT_ERROR(GLFWFatal, "GLFW Window is null when creating window surface!");
+//	surface = VulkanHandler::AddSurface(this);
+//
+//	//vulkan::VulkanHandler::GetPrimarySurface()->Init();
+//}
 
 void Window::PollEvents() const
 {
@@ -37,8 +46,8 @@ void Window::KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int ac
 	if (handler)
 	{
 		uint32_t u_key =
-			(key < 0 || key >= GLFW_KEY_LAST) ? static_cast<uint32_t>(KeyEvent::Key::Unknown) : static_cast<uint32_t>(key);
-		handler->event_handler->Notify<KeyEvent>(handler->event_handler.get(), u_key, action, mods);
+			(key < 0 || key >= GLFW_KEY_LAST) ? static_cast<uint32_t>(Event::Key::Unknown) : static_cast<uint32_t>(key);
+		handler->event_handler->Notify<Event::KeyEvent>(handler->event_handler.get(), u_key, action, mods);
 	}
 }
 
@@ -49,9 +58,9 @@ void Window::MouseButtonCallbackStatic(GLFWwindow* window, int button, int actio
 	if (handler)
 	{
 		uint32_t u_button = (button < 0 || button >= GLFW_MOUSE_BUTTON_LAST)
-								? static_cast<uint32_t>(MouseButtonEvent::Button::Unknown)
+								? static_cast<uint32_t>(Event::MouseButton::Unknown)
 								: static_cast<uint32_t>(button);
-		handler->event_handler->Notify<MouseButtonEvent>(handler->event_handler.get(), u_button, action, mods);
+		handler->event_handler->Notify<Event::MouseButtonEvent>(handler->event_handler.get(), u_button, action, mods);
 	}
 }
 
@@ -60,7 +69,7 @@ void Window::MouseMoveCallbackStatic(GLFWwindow* window, double x, double y)
 	Window* handler = static_cast<Window*>(glfwGetWindowUserPointer(window));
 	if (handler)
 	{
-		handler->event_handler->Notify<MouseMoveEvent>(handler->event_handler.get(), static_cast<float>(x), static_cast<float>(y));
+		handler->event_handler->Notify<Event::MouseMoveEvent>(handler->event_handler.get(), x, y);
 	}
 }
 

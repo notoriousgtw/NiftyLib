@@ -70,11 +70,6 @@ class Device
 	vk::Fence CreateFence(const vk::FenceCreateInfo& fence_info) const;
 
 	//=========================================================================
-	// BUFFER MANAGEMENT
-	//=========================================================================
-	BufferManager* GetBufferManager() const { return buffer_manager.get(); }
-
-	//=========================================================================
 	// PUBLIC GETTERS (const methods for read-only access)
 	//=========================================================================
 	Instance* GetInstance() const { return instance; }
@@ -93,6 +88,16 @@ class Device
 	const std::vector<const char*>&		GetExtensions() const { return extensions; }
 	const std::vector<const char*>&		GetLayers() const { return layers; }
 
+	// Buffer management access
+	BufferManager* GetBufferManager() { return buffer_manager.get(); }
+
+	// Public access to core members (for easier interop between Vulkan wrappers)
+	QueueFamilyIndices queue_family_indices;  // Made public for easier access
+	vk::Queue vk_graphics_queue = nullptr;    // Made public for easier access
+	vk::Queue vk_present_queue = nullptr;     // Made public for easier access
+	vk::PhysicalDevice vk_physical_device = nullptr;  // Made public for easier access
+	vk::Device vk_device;                     // Made public for easier access
+
   private:
 	//=========================================================================
 	// PRIVATE MEMBER VARIABLES
@@ -102,18 +107,11 @@ class Device
 	Instance* instance = nullptr;
 	App*	  app	   = nullptr;
 
-	// Vulkan device objects
-	vk::PhysicalDevice vk_physical_device = nullptr;
-	vk::Device		   vk_device;
-	vk::Queue		   vk_graphics_queue = nullptr;
-	vk::Queue		   vk_present_queue	 = nullptr;
-
 	// Resource managers
-	std::unique_ptr<BufferManager> buffer_manager;
+	std::unique_ptr<BufferManager> buffer_manager;  // Keep unique_ptr for ownership
 
 	// Device selection data
 	std::vector<vk::PhysicalDevice> available_devices;
-	QueueFamilyIndices				queue_family_indices;
 	vk::PhysicalDeviceFeatures		device_features;
 	vk::PhysicalDeviceProperties	device_properties;
 	std::vector<const char*>		extensions;
@@ -129,30 +127,6 @@ class Device
 
 	// Platform-specific presentation support check
 	bool CheckPlatformPresentationSupport(uint32_t queue_family_index) const;
-
-	//=========================================================================
-	// FRIEND CLASSES (Allow controlled access to private members)
-	//=========================================================================
-	friend class Buffer;	// Needs access to vk_device, vk_physical_device, and queues
-	friend class BufferManager;
-	friend class Surface;	 // Needs access to vk_device, vk_physical_device, and queues
-	friend class ObjectPicker;	 // Needs access to vk_device, vk_physical_device, and queues
-	friend class Scene;
-	friend class Image;
-	friend class Texture;
-	friend struct ShaderStage;
-	friend struct VertexShaderStage;
-	friend struct FragmentShaderStage;
-	friend struct VertexInputStage;
-	friend struct InputAssemblyStage;
-	friend struct ViewportStage;
-	friend struct RasterizationStage;
-	friend struct MultisampleStage;
-	friend struct ColorBlendStage;
-	friend struct DescriptorSetLayout;
-	friend struct DescriptorPool;
-	friend struct PipelineLayout;
-	friend struct RenderPass;
 };
 
 }	 // namespace nft::vulkan

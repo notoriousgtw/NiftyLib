@@ -3,8 +3,8 @@
 #include "core/event_base.h"
 
 #include "core/glfw_common.h"
-#include <string>
 #include <memory>
+#include <string>
 
 namespace nft
 {
@@ -13,12 +13,17 @@ class EventHandler;
 
 namespace nft::vulkan
 {
+// Forward declarations
+class Surface;
+
 class Window
 {
   public:
 	Window(int width, int height, std::string title): width(width), height(height), title(title) { Init(); };
 	Window(const Window&)			 = delete;
 	Window& operator=(const Window&) = delete;
+
+	//void CreateWindowSurface();
 
 	// std::vector<std::unique_ptr<Event>> events;
 	std::string GetTitle() const { return title; };
@@ -34,8 +39,8 @@ class Window
 		height = new_height;
 		glfwSetWindowSize(window, width, height);
 	};
-	int	 GetWidth() const { return width; };
-	int	 GetHeight() const { return height; };
+	int GetWidth() const { return width; };
+	int GetHeight() const { return height; };
 
 	glm::vec2 GetMousePos() const
 	{
@@ -47,14 +52,17 @@ class Window
 	void PollEvents() const;
 	void SwapBuffers() const { glfwSwapBuffers(window); };
 	bool ShouldClose() const { return glfwWindowShouldClose(window); };
+	std::shared_ptr<Surface> GetSurface() const { return surface; };
 
   private:
 	int			width;
 	int			height;
 	std::string title;
 
-	GLFWwindow*	 window;
-	std::unique_ptr<EventHandler> event_handler;
+	GLFWwindow* window;
+	std::shared_ptr<Surface>	surface;
+
+	std::unique_ptr<Event::EventHandler> event_handler;
 
 	static void KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void MouseButtonCallbackStatic(GLFWwindow* window, int button, int action, int mods);
@@ -64,4 +72,4 @@ class Window
 	friend class Surface;
 	friend class Scene;
 };
-}	 // namespace nft::GUI
+}	 // namespace nft::vulkan

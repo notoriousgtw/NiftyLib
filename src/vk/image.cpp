@@ -5,6 +5,7 @@
 
 #include "vk/commands.h"
 #include "vk/handler.h"
+#include "vk/pipeline.h"  // For DescriptorPool and DescriptorSetLayout definitions
 
 namespace nft::vulkan
 {
@@ -209,7 +210,7 @@ void Image::InitMemory(vk::MemoryPropertyFlags memory_properties)
 	vk_memory_allocate_info =
 		vk::MemoryAllocateInfo()
 			.setAllocationSize(vk_memory_requirements.size)
-			.setMemoryTypeIndex(device->buffer_manager->FindMemoryType(vk_memory_requirements.memoryTypeBits, memory_properties));
+			.setMemoryTypeIndex(device->GetBufferManager()->FindMemoryType(vk_memory_requirements.memoryTypeBits, memory_properties));
 	try
 	{
 		vk_memory = device->vk_device.allocateMemory(vk_memory_allocate_info);
@@ -242,10 +243,10 @@ void Image::UploadPixelData(const void* pixels, size_t size, vk::ImageLayout fin
 	if (size < 1)
 		NFT_ERROR(VulkanFatal, "Size of pixel data must be greater than zero!");
 	// Create staging buffer
-	Buffer* staging_buffer = device->buffer_manager->CreateBuffer(size,
+	Buffer* staging_buffer = device->GetBufferManager()->CreateBuffer(size,
 																  vk::BufferUsageFlagBits::eTransferSrc,
-																  vk::MemoryPropertyFlagBits::eHostCoherent |
-																	  vk::MemoryPropertyFlagBits::eHostVisible);
+																  vk::MemoryPropertyFlagBits::eHostVisible |
+																	  vk::MemoryPropertyFlagBits::eHostCoherent);
 
 	// Map memory and copy pixel data
 	void* write_ptr = device->vk_device.mapMemory(
@@ -264,7 +265,7 @@ void Image::UploadPixelData(const void* pixels, size_t size, vk::ImageLayout fin
 	TransistionLayout(vk::ImageLayout::eTransferDstOptimal, final_layout);
 
 	// Cleanup staging buffer
-	device->buffer_manager->DestroyBuffer(staging_buffer);
+	device->GetBufferManager()->DestroyBuffer(staging_buffer);
 
 	image_created = true;
 	CreateImageView(vk::Format::eR8G8B8A8Unorm);

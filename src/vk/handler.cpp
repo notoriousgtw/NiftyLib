@@ -13,10 +13,10 @@ namespace nft::vulkan
 //=============================================================================
 // STATIC MEMBER DEFINITIONS
 //=============================================================================
-App*                                     VulkanHandler::app      = nullptr;
-std::unique_ptr<Instance>                VulkanHandler::instance = nullptr;
-std::unique_ptr<Device>                  VulkanHandler::device   = nullptr;
-std::vector<std::unique_ptr<Surface>>    VulkanHandler::surfaces = {};
+App*								  VulkanHandler::app	  = nullptr;
+std::unique_ptr<Instance>			  VulkanHandler::instance = nullptr;
+std::unique_ptr<Device>				  VulkanHandler::device	  = nullptr;
+std::vector<std::shared_ptr<Surface>> VulkanHandler::surfaces = {};
 
 //=============================================================================
 // INITIALIZATION METHODS
@@ -24,19 +24,19 @@ std::vector<std::unique_ptr<Surface>>    VulkanHandler::surfaces = {};
 
 void VulkanHandler::Init(App* app)
 {
-    // Validate input parameters
-    if (!app) 
-        NFT_ERROR(VulkanFatal, "App Is Null!");
-    
-    app->GetLogger()->Debug("Initializing Vulkan Handler...", "VKInit");
-    VulkanHandler::app = app;
+	// Validate input parameters
+	if (!app)
+		NFT_ERROR(VulkanFatal, "App Is Null!");
 
-    instance = std::make_unique<Instance>(app);
-    
-    device = std::make_unique<Device>(instance.get());
+	app->GetLogger()->Debug("Initializing Vulkan Handler...", "VKInit");
+	VulkanHandler::app = app;
+
+	instance = std::make_unique<Instance>(app);
+
+	device = std::make_unique<Device>(instance.get());
 
 #if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
-    instance->InitDispatchLoaderWithDevice(device->GetDevice());
+	instance->InitDispatchLoaderWithDevice(device->GetDevice());
 #endif
 }
 
@@ -44,50 +44,46 @@ void VulkanHandler::Init(App* app)
 // RENDERING METHODS
 //=============================================================================
 
-
 void VulkanHandler::Render()
 {
-    // Validate that the system is properly initialized
-    if (!app) {
-        NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - App is null!");
-        return;
-    }
-    
-    if (!device) {
-        NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - Device is null!");
-        return;
-    }
-    
-    if (surfaces.empty() || !surfaces[0]) {
-        NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - No primary surface available!");
-        return;
-    }
+	// Validate that the system is properly initialized
+	if (!app)
+		NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - App is null!");
 
-    // Render the primary surface
-    try {
-        surfaces[0]->Render();
-    }
-    catch (const std::exception& e) {
-        app->GetLogger()->Error(std::format("Rendering failed: {}", e.what()), "VKRender");
-    }
+	if (!device)
+		NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - Device is null!");
+
+	if (surfaces.empty() || !surfaces[0])
+		NFT_ERROR(VulkanFatal, "VulkanHandler not initialized - No surface available!");
+
+	// Render the primary surface
+	try
+	{
+		surfaces[0]->Render();
+	}
+	catch (const std::exception& e)
+	{
+		app->GetLogger()->Error(std::format("Rendering failed: {}", e.what()), "VKRender");
+	}
 }
 
-void VulkanHandler::AddSurface(Window* window) 
+std::shared_ptr<Surface> VulkanHandler::AddSurface(Window* window)
 {
-    surfaces.push_back(std::make_unique<Surface>(instance.get(), device.get(), window));
+	surfaces.push_back(std::make_unique<Surface>(instance.get(), device.get(), window));
+	return surfaces.back();
 }
 
 //=============================================================================
 // ACCESSOR METHODS
 //=============================================================================
 
-//Surface* VulkanHandler::GetPrimarySurface() 
+// Surface* VulkanHandler::GetPrimarySurface()
 //{
-//    if (surfaces.empty()) {
-//        return nullptr;
-//    }
-//    return surfaces[0].get();
-//}
+//     if (surfaces.empty()) {
+//         return nullptr;
+//     }
+//     return surfaces[0].get();
+// }
 
 //=============================================================================
 // CLEANUP METHODS
@@ -97,24 +93,20 @@ void VulkanHandler::ShutDown()
 {
 	device->GetDevice().waitIdle();	   // Ensure all operations are complete before cleanup
 
-    app->GetLogger()->Debug("Cleaning Up Vulkan Resources...", "VKShutdown");
+	app->GetLogger()->Debug("Cleaning Up Vulkan Resources...", "VKShutdown");
 
-    // CRITICAL ORDER: Clean up surfaces first while device is still valid
-    // Surfaces need the device to properly destroy their Vulkan objects
-    for (auto& surface : surfaces)
-    {
-        if (surface)
-        {
-            surface->Cleanup(); // Explicit cleanup while device is still valid
-        }
-    }
-    surfaces.clear();
+	// CRITICAL ORDER: Clean up surfaces first while device is still valid
+	// Surfaces need the device to properly destroy their Vulkan objects
+	for (auto& surface : surfaces)
+		if (surface)
+			surface->Cleanup();	   // Explicit cleanup while device is still valid
+	surfaces.clear();
 
-    // Now it's safe to destroy device and instance
-    device.reset();
-    instance.reset();
+	// Now it's safe to destroy device and instance
+	device.reset();
+	instance.reset();
 
-    app->GetLogger()->Debug("Vulkan Cleanup Complete!", "VKShutdown");
+	app->GetLogger()->Debug("Vulkan Cleanup Complete!", "VKShutdown");
 }
 
-} // namespace nft::vulkan
+}	 // namespace nft::vulkan

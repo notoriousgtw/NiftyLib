@@ -53,12 +53,15 @@ class IMesh
 	virtual void AddVertex(VertexData vertex_data) = 0;
 	void		 LoadObj(const std::string& file_dir, const std::string& file_name);	// Load mesh from OBJ file
 
+	// Public accessors instead of friend declarations
+	const std::vector<float>& GetVertices() const { return *vertices; }
+	const std::vector<uint32_t>& GetIndices() const { return *indices; }
+	std::vector<float>& GetVerticesRef() { return *vertices; }
+	std::vector<uint32_t>& GetIndicesRef() { return *indices; }
+
   protected:
 	std::unique_ptr<std::vector<float>>	   vertices;
 	std::unique_ptr<std::vector<uint32_t>> indices;	   // Optional indices for indexed drawing
-
-	friend class GeometryBatcher;
-	friend class Surface;
 };
 
 class SimpleMesh: public IMesh
@@ -92,9 +95,16 @@ class GeometryBatcher
 	GeometryBatcher(Device* device);
 	~GeometryBatcher() = default;
 
-	void	AddGeometry(const IMesh* mesh);
-	void	CreateBuffers(vk::CommandBuffer command_buffer, vk::Queue queue);
-	Buffer* GetVertexBuffer() const { return vertex_buffer; }
+	void							 AddGeometry(const IMesh* mesh);
+	void							 CreateBuffers(vk::CommandBuffer command_buffer, vk::Queue queue);
+	
+	// Public accessors instead of friend declarations
+	Buffer*							 GetVertexBuffer() const { return vertex_buffer; }
+	Buffer*							 GetIndexBuffer() const { return index_buffer; }
+	const std::map<const IMesh*, MeshData>& GetMeshData() const { return mesh_data; }
+	const std::vector<float>& GetVertexData() const { return vertex_data; }
+	const std::vector<uint32_t>& GetIndexData() const { return index_data; }
+	bool HasIndexData() const { return !index_data.empty(); }
 
   private:
 	Device*							 device;	// Device used for Vulkan operations
@@ -106,9 +116,5 @@ class GeometryBatcher
 
 	Buffer* vertex_buffer;
 	Buffer* index_buffer;
-
-	friend class Scene;
-	friend class Surface;
-	friend class ObjectPicker;
 };
 }	 // namespace nft::vulkan

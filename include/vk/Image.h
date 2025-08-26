@@ -48,7 +48,10 @@ class Image
 			  vk::PipelineLayout	pipeline_layout,
 			  uint32_t				set_index = 0);
 
-	inline vk::ImageView& GetImageView() { return vk_image_view; }
+	// Public accessors instead of friend declarations
+	const vk::ImageView& GetImageView() const { return vk_image_view; }
+	const vk::Sampler& GetSampler() const { return vk_sampler; }
+	const vk::Image& GetVkImage() const { return vk_image; }
 
   protected:
 	Device* device = nullptr;
@@ -70,7 +73,7 @@ class Image
 	char*	 file_path;
 	stbi_uc* pixels = nullptr;
 
-	// Resources
+	// Resources - now protected instead of private, accessible via getters
 	vk::Image				   vk_image = VK_NULL_HANDLE;
 	vk::ImageCreateInfo		   vk_image_info;
 	vk::ImageSubresourceRange  vk_subresource_range;
@@ -90,9 +93,6 @@ class Image
 	vk::DescriptorSetAllocateInfo		 vk_descriptor_set_alloc_info;
 
 	void AllocateDescriptorSet();
-
-	friend class Scene;
-	friend class ObjectPicker;
 };
 
 class Texture: public Image
@@ -116,13 +116,9 @@ class Texture: public Image
 			 vk::PipelineBindPoint bind_point,
 			 vk::PipelineLayout	   pipeline_layout,
 			 uint32_t			   set_index = 0);
-	friend class Scene;
-	friend class Surface;
 
   private:
 	bool sampler_created = false;
-	friend class Scene;
-	friend class Surface;
 };
 
 vk::Format FindFormat(Device*						 device,
