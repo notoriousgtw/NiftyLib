@@ -2,7 +2,7 @@
 
 #include "vk/geometry.h"	// For MaterialPushConstants
 #include "vk/handler.h"
-#include "vk/surface.h"		// Forward declaration resolution
+#include "vk/surface.h"	   // Forward declaration resolution
 
 #include "vk/image.h"
 #include "vk/scene.h"
@@ -203,8 +203,8 @@ void DescriptorPool::Cleanup()
 // PIPELINE LAYOUT IMPLEMENTATIONS
 //=============================================================================
 
-void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts, 
-						  std::vector<vk::PushConstantRange> push_constant_ranges)
+void PipelineLayout::Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts,
+						  std::vector<vk::PushConstantRange>   push_constant_ranges)
 {
 	vk_pipeline_layout_info = vk::PipelineLayoutCreateInfo()
 								  .setFlags(vk::PipelineLayoutCreateFlags())
@@ -300,8 +300,8 @@ void RenderPass::Init(vk::Format color_format, vk::Format depth_format)
 }
 
 void RenderPass::Init(const std::vector<vk::AttachmentDescription>& attachments,
-					  const std::vector<vk::SubpassDescription>& subpasses,
-					  const std::vector<vk::SubpassDependency>& dependencies)
+					  const std::vector<vk::SubpassDescription>&	subpasses,
+					  const std::vector<vk::SubpassDependency>&		dependencies)
 {
 	vk_render_pass_info = vk::RenderPassCreateInfo()
 							  .setFlags(vk::RenderPassCreateFlags())
@@ -341,33 +341,33 @@ void Frame::Init(Surface* surface, Scene* scene)
 		NFT_ERROR(VulkanFatal, "Surface pointer is null!");
 	if (!scene)
 		NFT_ERROR(VulkanFatal, "Scene pointer is null!");
-	this->surface = surface;
-	this->device = surface->GetDevice();
-	this->scene = scene;
+	this->surface	= surface;
+	this->device	= surface->GetDevice();
+	this->scene		= scene;
 	swapchain_image = Image(device);
-	depth_buffer = Image(device);
+	depth_buffer	= Image(device);
 }
 
 void Frame::MakeDescriptorResources()
 {
 	if (!device)
 		NFT_ERROR(VulkanFatal, "Device pointer is null!");
-	
+
 	camera_data_buffer = device->GetBufferManager()->CreateBuffer(sizeof(UniformBufferObject),
-															  vk::BufferUsageFlagBits::eUniformBuffer,
-															  vk::MemoryPropertyFlagBits::eHostVisible |
-																  vk::MemoryPropertyFlagBits::eHostCoherent);
-	camera_data_ptr = device->GetDevice().mapMemory(
-		camera_data_buffer->vk_memory, 0, sizeof(UniformBufferObject), vk::MemoryMapFlags{});
+																  vk::BufferUsageFlagBits::eUniformBuffer,
+																  vk::MemoryPropertyFlagBits::eHostVisible |
+																	  vk::MemoryPropertyFlagBits::eHostCoherent);
+	camera_data_ptr =
+		device->GetDevice().mapMemory(camera_data_buffer->vk_memory, 0, sizeof(UniformBufferObject), vk::MemoryMapFlags {});
 
 	std::memset(camera_data_ptr, 0, sizeof(UniformBufferObject));
 
 	object_transform_buffer = device->GetBufferManager()->CreateBuffer(sizeof(glm::mat4) * MAX_OBJECTS,
-																   vk::BufferUsageFlagBits::eStorageBuffer,
-																   vk::MemoryPropertyFlagBits::eHostVisible |
-																	   vk::MemoryPropertyFlagBits::eHostCoherent);
-	object_transform_ptr = device->GetDevice().mapMemory(
-		object_transform_buffer->vk_memory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags{});
+																	   vk::BufferUsageFlagBits::eStorageBuffer,
+																	   vk::MemoryPropertyFlagBits::eHostVisible |
+																		   vk::MemoryPropertyFlagBits::eHostCoherent);
+	object_transform_ptr =
+		device->GetDevice().mapMemory(object_transform_buffer->vk_memory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlags {});
 
 	// Zero out the buffer
 	std::memset(object_transform_ptr, 0, MAX_OBJECTS * sizeof(glm::mat4));
@@ -388,32 +388,30 @@ void Frame::AllocateFrameDescriptorSet(DescriptorPool* frame_descriptor_pool, De
 	std::vector<vk::WriteDescriptorSet> descriptor_writes;
 
 	// Camera data (binding 0)
-	vk::DescriptorBufferInfo camera_buffer_info = vk::DescriptorBufferInfo()
-													   .setBuffer(camera_data_buffer->vk_buffer)
-													   .setOffset(0)
-													   .setRange(sizeof(UniformBufferObject));
+	vk::DescriptorBufferInfo camera_buffer_info =
+		vk::DescriptorBufferInfo().setBuffer(camera_data_buffer->vk_buffer).setOffset(0).setRange(sizeof(UniformBufferObject));
 
 	descriptor_writes.push_back(vk::WriteDescriptorSet()
-									 .setDstSet(vk_descriptor_set)
-									 .setDstBinding(0)
-									 .setDstArrayElement(0)
-									 .setDescriptorCount(1)
-									 .setDescriptorType(vk::DescriptorType::eUniformBuffer)
-									 .setPBufferInfo(&camera_buffer_info));
+									.setDstSet(vk_descriptor_set)
+									.setDstBinding(0)
+									.setDstArrayElement(0)
+									.setDescriptorCount(1)
+									.setDescriptorType(vk::DescriptorType::eUniformBuffer)
+									.setPBufferInfo(&camera_buffer_info));
 
 	// Object transforms (binding 1)
 	vk::DescriptorBufferInfo object_buffer_info = vk::DescriptorBufferInfo()
-													   .setBuffer(object_transform_buffer->vk_buffer)
-													   .setOffset(0)
-													   .setRange(sizeof(glm::mat4) * MAX_OBJECTS);
+													  .setBuffer(object_transform_buffer->vk_buffer)
+													  .setOffset(0)
+													  .setRange(sizeof(glm::mat4) * MAX_OBJECTS);
 
 	descriptor_writes.push_back(vk::WriteDescriptorSet()
-									 .setDstSet(vk_descriptor_set)
-									 .setDstBinding(1)
-									 .setDstArrayElement(0)
-									 .setDescriptorCount(1)
-									 .setDescriptorType(vk::DescriptorType::eStorageBuffer)
-									 .setPBufferInfo(&object_buffer_info));
+									.setDstSet(vk_descriptor_set)
+									.setDstBinding(1)
+									.setDstArrayElement(0)
+									.setDescriptorCount(1)
+									.setDescriptorType(vk::DescriptorType::eStorageBuffer)
+									.setPBufferInfo(&object_buffer_info));
 
 	// Update all descriptors
 	device->GetDevice().updateDescriptorSets(descriptor_writes, nullptr);
@@ -434,30 +432,30 @@ void Frame::Prepare(glm::mat4 camera_transforms)
 	if (!camera_data_buffer)
 		NFT_ERROR(VulkanFatal, "Camera data buffer is not initialized!");
 
-	glm::vec3 eye = glm::vec3(camera_transforms[3]);
+	glm::vec3 eye					= glm::vec3(camera_transforms[3]);
 	glm::vec3 base_center_direction = glm::vec3(0.0f, 0.0f, -1.0f);
-	glm::mat3 rotation_matrix = glm::mat3(camera_transforms);
-	glm::vec3 rotated_direction = rotation_matrix * base_center_direction;
-	glm::vec3 center = eye + rotated_direction;
-	glm::vec3 up = glm::normalize(glm::vec3(camera_transforms[1]));
+	glm::mat3 rotation_matrix		= glm::mat3(camera_transforms);
+	glm::vec3 rotated_direction		= rotation_matrix * base_center_direction;
+	glm::vec3 center				= eye + rotated_direction;
+	glm::vec3 up					= glm::normalize(glm::vec3(camera_transforms[1]));
 
 	camera_data.view = glm::lookAt(eye, center, up);
-	camera_data.proj = glm::perspective(glm::radians(45.0f),
-										static_cast<float>(surface->GetExtent().width) /
-											static_cast<float>(surface->GetExtent().height),
-										0.1f,
-										100.0f);
+	camera_data.proj =
+		glm::perspective(glm::radians(45.0f),
+						 static_cast<float>(surface->GetExtent().width) / static_cast<float>(surface->GetExtent().height),
+						 0.1f,
+						 100.0f);
 	camera_data.proj[1][1] *= -1;
 	camera_data.pos = eye;
 
 	std::memcpy(camera_data_ptr, &camera_data, sizeof(UniformBufferObject));
 
 	// Use getter method to access objects
-	const auto& objects = scene->GetObjects();
+	const auto&	 objects	  = scene->GetObjects();
 	const size_t object_count = objects.size();
 	for (size_t idx = 0; idx < object_count; ++idx)
 	{
-		//object_transforms[idx] = objects[idx].transform;
+		// object_transforms[idx] = objects[idx].transform;
 		object_transforms.emplace_back(objects[idx].transform);
 	}
 
@@ -470,11 +468,11 @@ void Frame::Cleanup()
 	if (device)
 	{
 		device->GetDevice().destroyFramebuffer(vk_frame_buffer);
-		
+
 		device->GetDevice().destroyFence(in_flight_fence);
-		
+
 		device->GetDevice().destroySemaphore(image_available_semaphore);
-		
+
 		device->GetDevice().destroySemaphore(render_finished_semaphore);
 
 		if (camera_data_ptr)
@@ -505,9 +503,7 @@ void Frame::Cleanup()
 //=============================================================================
 
 AbstractPipeline::AbstractPipeline(Device* device, PipelineType type):
-	device(device),
-	pipeline_type(type),
-	pipeline_layout(device)
+	device(device), pipeline_type(type), pipeline_layout(device)
 {
 	if (!device)
 		NFT_ERROR(VulkanFatal, "Device is null!");
@@ -536,7 +532,7 @@ void AbstractPipeline::Cleanup()
 
 		for (auto& shader_stage : shader_stages)
 			if (shader_stage.shader)
-			 shader_stage.shader.reset();
+				shader_stage.shader.reset();
 		shader_stages.clear();
 
 		pipeline_layout.Cleanup();
@@ -562,9 +558,9 @@ void AbstractPipeline::CreateCommandPool()
 	try
 	{
 		vk_command_buffer = device->GetDevice().allocateCommandBuffers(vk::CommandBufferAllocateInfo()
-																		 .setCommandPool(vk_command_pool)
-																		 .setLevel(vk::CommandBufferLevel::ePrimary)
-																		 .setCommandBufferCount(1))[0];
+																		   .setCommandPool(vk_command_pool)
+																		   .setLevel(vk::CommandBufferLevel::ePrimary)
+																		   .setCommandBufferCount(1))[0];
 	}
 	catch (const vk::SystemError& err)
 	{
@@ -592,7 +588,7 @@ GraphicsPipelineBase::GraphicsPipelineBase(Device* device):
 void GraphicsPipelineBase::AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage)
 {
 	shader_stages.emplace_back(device);
-	shader_stages.back().shader = std::make_unique<Shader>(device, shader_code);
+	shader_stages.back().shader				  = std::make_unique<Shader>(device, shader_code);
 	shader_stages.back().vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
 													.setFlags(vk::PipelineShaderStageCreateFlags())
 													.setStage(stage)
@@ -651,7 +647,7 @@ void GraphicsPipelineBase::Cleanup()
 	{
 		render_pass.Cleanup();
 	}
-	
+
 	// Call base cleanup
 	AbstractPipeline::Cleanup();
 }
@@ -687,10 +683,7 @@ void GraphicsPipelineBase::SetupPipelineStages(vk::Extent2D extent)
 // COMPUTE PIPELINE BASE IMPLEMENTATIONS
 //=============================================================================
 
-ComputePipelineBase::ComputePipelineBase(Device* device):
-	AbstractPipeline(device, PipelineType::Compute)
-{
-}
+ComputePipelineBase::ComputePipelineBase(Device* device): AbstractPipeline(device, PipelineType::Compute) {}
 
 void ComputePipelineBase::AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage)
 {
@@ -703,7 +696,7 @@ void ComputePipelineBase::AddShaderStage(Shader::ShaderCode shader_code, vk::Sha
 	// Clear previous stages (compute pipeline should only have one stage)
 	shader_stages.clear();
 	shader_stages.emplace_back(device);
-	shader_stages.back().shader = std::make_unique<Shader>(device, shader_code);
+	shader_stages.back().shader				  = std::make_unique<Shader>(device, shader_code);
 	shader_stages.back().vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
 													.setFlags(vk::PipelineShaderStageCreateFlags())
 													.setStage(stage)
@@ -750,7 +743,9 @@ void ComputePipelineBase::Dispatch(uint32_t group_count_x, uint32_t group_count_
 	Dispatch(group_count_x, group_count_y, group_count_z, vk_command_buffer);
 }
 
-void ComputePipelineBase::Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z, 
+void ComputePipelineBase::Dispatch(uint32_t			 group_count_x,
+								   uint32_t			 group_count_y,
+								   uint32_t			 group_count_z,
 								   vk::CommandBuffer command_buffer)
 {
 	command_buffer.bindPipeline(vk::PipelineBindPoint::eCompute, vk_pipeline);
@@ -788,10 +783,25 @@ void GraphicsPipeline::SetupDescriptorLayouts()
 	};
 	frame_set_layout.Init(frame_bindings);
 
-	// Set 1: Texture array
+	//// Set 1: Texture array
+	// std::vector<DescriptorSetLayout::Binding> texture_bindings = {
+	//	{ 0, vk::DescriptorType::eCombinedImageSampler, 32, vk::ShaderStageFlagBits::eFragment }
+	// };
+	// texture_set_layout.Init(texture_bindings);
+	//  Set 1: Bindless textures with variable count
 	std::vector<DescriptorSetLayout::Binding> texture_bindings = {
-		{ 0, vk::DescriptorType::eCombinedImageSampler, 32, vk::ShaderStageFlagBits::eFragment }
+		// Use a very large count or VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
+		{ 0, vk::DescriptorType::eCombinedImageSampler, 65536, vk::ShaderStageFlagBits::eFragment }
 	};
+
+	// Enable descriptor indexing features
+	vk::DescriptorSetLayoutBindingFlagsCreateInfo binding_flags_info;
+	std::vector<vk::DescriptorBindingFlags>		  binding_flags = { vk::DescriptorBindingFlagBits::eVariableDescriptorCount |
+																	vk::DescriptorBindingFlagBits::ePartiallyBound |
+																	vk::DescriptorBindingFlagBits::eUpdateAfterBind };
+	binding_flags_info.setBindingCount(binding_flags.size()).setPBindingFlags(binding_flags.data());
+
+	texture_set_layout.vk_descriptor_set_layout_info.setPNext(&binding_flags_info);
 	texture_set_layout.Init(texture_bindings);
 
 	vk_descriptor_set_layouts = { frame_set_layout.vk_descriptor_set_layout, texture_set_layout.vk_descriptor_set_layout };
@@ -812,31 +822,32 @@ void GraphicsPipeline::PrepareScene(vk::CommandBuffer command_buffer)
 		return;
 	}
 
-	vk::Buffer vertex_buffers[] = { geometry_batcher->GetVertexBuffer()->vk_buffer };
-	VkDeviceSize offsets[] = { 0 };
+	vk::Buffer	 vertex_buffers[] = { geometry_batcher->GetVertexBuffer()->vk_buffer };
+	VkDeviceSize offsets[]		  = { 0 };
 	command_buffer.bindVertexBuffers(0, 1, vertex_buffers, offsets);
-	
+
 	// Check if we have index data using the new getter method
 	if (!geometry_batcher->HasIndexData())
 		return;
-		
+
 	command_buffer.bindIndexBuffer(geometry_batcher->GetIndexBuffer()->vk_buffer, 0, vk::IndexType::eUint32);
 }
 
 void GraphicsPipeline::RecordDrawCommands(Frame& frame, uint32_t image_index)
 {
-	auto command_buffer = frame.vk_command_buffer;
-	vk::CommandBufferBeginInfo begin_info = vk::CommandBufferBeginInfo();
+	auto					   command_buffer = frame.vk_command_buffer;
+	vk::CommandBufferBeginInfo begin_info	  = vk::CommandBufferBeginInfo();
 	command_buffer.begin(begin_info);
 
 	std::vector<vk::ClearValue> clear_values = { clear_color, clear_depth };
 
-	vk::RenderPassBeginInfo render_pass_begin_info = vk::RenderPassBeginInfo()
-														 .setRenderPass(render_pass.vk_render_pass)
-														 .setFramebuffer(frame.vk_frame_buffer)
-														 .setRenderArea(vk::Rect2D().setOffset({ 0, 0 }).setExtent(viewport_stage.scissor.extent))
-														 .setClearValueCount(clear_values.size())
-														 .setPClearValues(clear_values.data());
+	vk::RenderPassBeginInfo render_pass_begin_info =
+		vk::RenderPassBeginInfo()
+			.setRenderPass(render_pass.vk_render_pass)
+			.setFramebuffer(frame.vk_frame_buffer)
+			.setRenderArea(vk::Rect2D().setOffset({ 0, 0 }).setExtent(viewport_stage.scissor.extent))
+			.setClearValueCount(clear_values.size())
+			.setPClearValues(clear_values.data());
 	command_buffer.beginRenderPass(render_pass_begin_info, vk::SubpassContents::eInline);
 
 	// Bind frame descriptor set (set 0: camera + transforms)
@@ -851,18 +862,18 @@ void GraphicsPipeline::RecordDrawCommands(Frame& frame, uint32_t image_index)
 	PrepareScene(command_buffer);
 
 	const auto& mesh_data = scene->GetGeometryBatcher()->GetMeshData();
-	const auto& objects = scene->GetObjects();  // Use getter method
-	const auto& materials = scene->GetMaterials();  // Use getter method
+	const auto& objects	  = scene->GetObjects();	  // Use getter method
+	const auto& materials = scene->GetMaterials();	  // Use getter method
 
 	for (const auto& mesh_entry : mesh_data)
 	{
-		const IMesh* mesh = mesh_entry.first;
+		const IMesh*					 mesh			 = mesh_entry.first;
 		const GeometryBatcher::MeshData& mesh_data_entry = mesh_entry.second;
 
 		uint32_t vertex_count = static_cast<uint32_t>(mesh_data_entry.size);
 		uint32_t first_vertex = static_cast<uint32_t>(mesh_data_entry.offset);
-		uint32_t index_count = static_cast<uint32_t>(mesh_data_entry.index_size);
-		uint32_t first_index = static_cast<uint32_t>(mesh_data_entry.index_offset);
+		uint32_t index_count  = static_cast<uint32_t>(mesh_data_entry.index_size);
+		uint32_t first_index  = static_cast<uint32_t>(mesh_data_entry.index_offset);
 
 		// Draw each object separately with per-object material push constants
 		for (uint32_t instance_id = 0; instance_id < objects.size(); ++instance_id)
@@ -875,32 +886,30 @@ void GraphicsPipeline::RecordDrawCommands(Frame& frame, uint32_t image_index)
 				MaterialPushConstants material_push;
 				if (object.material_index < materials.size())
 				{
-					const auto& material = materials[object.material_index];
-					material_push.ambient = material.ambient;
-					material_push.diffuse = material.diffuse;
-					material_push.specular = material.specular;
+					const auto& material			  = materials[object.material_index];
+					material_push.ambient			  = material.ambient;
+					material_push.diffuse			  = material.diffuse;
+					material_push.specular			  = material.specular;
 					material_push.specular_highlights = material.specular_highlights;
 					material_push.diffuse_texture_index =
 						material.diffuse_texture_index != UINT32_MAX ? material.diffuse_texture_index : 33;
-					material_push.ambient_texture_index = material.ambient_texture_index != UINT32_MAX
-															   ? material.ambient_texture_index
-															   : 33;
-					material_push.specular_texture_index = material.specular_texture_index != UINT32_MAX
-															   ? material.specular_texture_index
-															   : 33;
+					material_push.ambient_texture_index =
+						material.ambient_texture_index != UINT32_MAX ? material.ambient_texture_index : 33;
+					material_push.specular_texture_index =
+						material.specular_texture_index != UINT32_MAX ? material.specular_texture_index : 33;
 					material_push.padding = 0;
 				}
 				else
 				{
 					// Default material
-					material_push.ambient = glm::vec3(0.1f);
-					material_push.diffuse = glm::vec3(0.8f);
-					material_push.specular = glm::vec3(0.5f);
-					material_push.specular_highlights = 32.0f;
-					material_push.diffuse_texture_index = 0;
-					material_push.ambient_texture_index = 31;
+					material_push.ambient				 = glm::vec3(0.1f);
+					material_push.diffuse				 = glm::vec3(0.8f);
+					material_push.specular				 = glm::vec3(0.5f);
+					material_push.specular_highlights	 = 32.0f;
+					material_push.diffuse_texture_index	 = 0;
+					material_push.ambient_texture_index	 = 31;
 					material_push.specular_texture_index = 31;
-					material_push.padding = 0;
+					material_push.padding				 = 0;
 				}
 
 				// Push the material constants
@@ -991,12 +1000,12 @@ void GraphicsPipeline::CreatePipeline()
 		{ 0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex },
 		{ 1, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eVertex }
 	};
-	
+
 	std::vector<DescriptorSetLayout::Binding> texture_bindings = {
 		{ 0, vk::DescriptorType::eCombinedImageSampler, 32, vk::ShaderStageFlagBits::eFragment }
 	};
 
-	frame_descriptor_pool.Init(frame_bindings, 3); // Assume max 3 frames in flight
+	frame_descriptor_pool.Init(frame_bindings, 3);	  // Assume max 3 frames in flight
 	texture_descriptor_pool.Init(texture_bindings, 1);
 
 	// Create pipeline layout with push constants
@@ -1020,12 +1029,11 @@ void GraphicsPipeline::RecreatePipeline()
 // OFFSCREEN GRAPHICS PIPELINE IMPLEMENTATIONS
 //=============================================================================
 
-OffscreenGraphicsPipeline::OffscreenGraphicsPipeline(Device* device, vk::Extent2D extent, 
-													  vk::Format color_format, vk::Format depth_format):
-	GraphicsPipelineBase(device),
-	extent(extent),
-	color_format(color_format),
-	depth_format(depth_format)
+OffscreenGraphicsPipeline::OffscreenGraphicsPipeline(Device*	  device,
+													 vk::Extent2D extent,
+													 vk::Format	  color_format,
+													 vk::Format	  depth_format):
+	GraphicsPipelineBase(device), extent(extent), color_format(color_format), depth_format(depth_format)
 {
 }
 
@@ -1034,7 +1042,7 @@ void OffscreenGraphicsPipeline::Init()
 	CreateCommandPool();
 	SetupPipelineStages(extent);
 	SetupDescriptorLayouts();
-	
+
 	if (depth_format != vk::Format::eUndefined)
 	{
 		render_pass.Init(color_format, depth_format);
@@ -1042,28 +1050,23 @@ void OffscreenGraphicsPipeline::Init()
 	else
 	{
 		// Create a render pass with only color attachment
-		std::vector<vk::AttachmentDescription> attachments = {
-			vk::AttachmentDescription()
-				.setFormat(color_format)
-				.setSamples(vk::SampleCountFlagBits::e1)
-				.setLoadOp(vk::AttachmentLoadOp::eClear)
-				.setStoreOp(vk::AttachmentStoreOp::eStore)
-				.setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
-				.setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
-				.setInitialLayout(vk::ImageLayout::eUndefined)
-				.setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal)
-		};
+		std::vector<vk::AttachmentDescription> attachments = { vk::AttachmentDescription()
+																   .setFormat(color_format)
+																   .setSamples(vk::SampleCountFlagBits::e1)
+																   .setLoadOp(vk::AttachmentLoadOp::eClear)
+																   .setStoreOp(vk::AttachmentStoreOp::eStore)
+																   .setStencilLoadOp(vk::AttachmentLoadOp::eDontCare)
+																   .setStencilStoreOp(vk::AttachmentStoreOp::eDontCare)
+																   .setInitialLayout(vk::ImageLayout::eUndefined)
+																   .setFinalLayout(vk::ImageLayout::eShaderReadOnlyOptimal) };
 
-		vk::AttachmentReference color_ref = vk::AttachmentReference()
-			.setAttachment(0)
-			.setLayout(vk::ImageLayout::eColorAttachmentOptimal);
+		vk::AttachmentReference color_ref =
+			vk::AttachmentReference().setAttachment(0).setLayout(vk::ImageLayout::eColorAttachmentOptimal);
 
-		std::vector<vk::SubpassDescription> subpasses = {
-			vk::SubpassDescription()
-				.setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
-				.setColorAttachmentCount(1)
-				.setPColorAttachments(&color_ref)
-		};
+		std::vector<vk::SubpassDescription> subpasses = { vk::SubpassDescription()
+															  .setPipelineBindPoint(vk::PipelineBindPoint::eGraphics)
+															  .setColorAttachmentCount(1)
+															  .setPColorAttachments(&color_ref) };
 
 		render_pass.Init(attachments, subpasses);
 	}
@@ -1107,12 +1110,12 @@ void OffscreenGraphicsPipeline::CreateFramebuffer()
 	}
 
 	vk::FramebufferCreateInfo framebuffer_info = vk::FramebufferCreateInfo()
-		.setRenderPass(render_pass.vk_render_pass)
-		.setAttachmentCount(attachments.size())
-		.setPAttachments(attachments.data())
-		.setWidth(extent.width)
-		.setHeight(extent.height)
-		.setLayers(1);
+													 .setRenderPass(render_pass.vk_render_pass)
+													 .setAttachmentCount(attachments.size())
+													 .setPAttachments(attachments.data())
+													 .setWidth(extent.width)
+													 .setHeight(extent.height)
+													 .setLayers(1);
 
 	try
 	{
@@ -1129,9 +1132,7 @@ void OffscreenGraphicsPipeline::CreateFramebuffer()
 //=============================================================================
 
 ExampleComputePipeline::ExampleComputePipeline(Device* device):
-	ComputePipelineBase(device),
-	compute_set_layout(device),
-	compute_descriptor_pool(device)
+	ComputePipelineBase(device), compute_set_layout(device), compute_descriptor_pool(device)
 {
 }
 
@@ -1187,6 +1188,46 @@ vk::DescriptorSet GetDescriptorSet(Device* device, DescriptorPool* pool, Descrip
 		NFT_ERROR(VulkanFatal, std::format("Failed To Allocate Descriptor Set:\n{}", err.what()));
 		return VK_NULL_HANDLE;
 	}
+}
+
+vk::VertexInputBindingDescription GetVertexInputBindingDescription()
+{
+	vk::VertexInputBindingDescription binding_description;
+	binding_description.binding	  = 0;								 // Binding index
+	binding_description.stride	  = 12 * sizeof(float);				 // Size of each vertex
+	binding_description.inputRate = vk::VertexInputRate::eVertex;	 // Per-vertex data
+	return binding_description;
+}
+
+std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescriptions()
+{
+	std::vector<vk::VertexInputAttributeDescription> attribute_descriptions;
+	attribute_descriptions.reserve(4);
+	// Position attribute
+	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
+										 .setBinding(0)
+										 .setLocation(0)
+										 .setFormat(vk::Format::eR32G32B32A32Sfloat)
+										 .setOffset(0));
+	// Texture Coordinate attribute
+	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
+										 .setBinding(0)
+										 .setLocation(2)
+										 .setFormat(vk::Format::eR32G32Sfloat)
+										 .setOffset(7 * sizeof(float)));
+	// Normal attribute
+	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
+										 .setBinding(0)
+										 .setLocation(3)
+										 .setFormat(vk::Format::eR32G32B32Sfloat)
+										 .setOffset(9 * sizeof(float)));
+	// Color attribute
+	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
+										 .setBinding(0)
+										 .setLocation(1)
+										 .setFormat(vk::Format::eR32G32B32A32Sfloat)
+										 .setOffset(3 * sizeof(float)));
+	return attribute_descriptions;
 }
 
 }	 // namespace nft::vulkan

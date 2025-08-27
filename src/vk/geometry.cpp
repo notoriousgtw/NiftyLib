@@ -51,12 +51,16 @@ void SimpleMesh::AddVertex(VertexData vertex)
 	vertices->push_back(vertex.x);
 	vertices->push_back(vertex.y);
 	vertices->push_back(vertex.z);
+	vertices->push_back(vertex.w);
+	vertices->push_back(vertex.u);
+	vertices->push_back(vertex.v);
+	vertices->push_back(vertex.nx);
+	vertices->push_back(vertex.ny);
+	vertices->push_back(vertex.nz);
 	vertices->push_back(vertex.r);
 	vertices->push_back(vertex.g);
 	vertices->push_back(vertex.b);
 	vertices->push_back(vertex.a);
-	vertices->push_back(vertex.u);
-	vertices->push_back(vertex.v);
 	// vertex_count++;
 }
 
@@ -98,6 +102,66 @@ void GeometryBatcher::AddGeometry(const IMesh* mesh)
 	index_data.insert(index_data.end(), indices.begin(), indices.end());
 
 	mesh_data[mesh] = mesh_data_entry;
+
+	current_offset += vertex_count;
+}
+
+void GeometryBatcher::AddGeometry(const graphics::TriMesh* mesh)
+{
+	if (!mesh)
+	{
+		NFT_ERROR(VulkanFatal, "Mesh pointer is null!");
+		return;
+	}
+
+	MeshData mesh_data_entry;
+	mesh_data_entry.offset = current_offset;
+
+	// Use getter methods instead of direct access
+	std::vector<float> vertices;
+
+	for (const auto& vertex : mesh->GetVertices())
+	{
+		vertices.push_back(vertex.position.x);
+		vertices.push_back(vertex.position.y);
+		vertices.push_back(vertex.position.z);
+		vertices.push_back(vertex.position.w);
+		vertices.push_back(vertex.tex_coord.x);
+		vertices.push_back(vertex.tex_coord.y);
+		vertices.push_back(vertex.normal.x);
+		vertices.push_back(vertex.normal.y);
+		vertices.push_back(vertex.normal.z);
+		vertices.push_back(vertex.color.r);
+		vertices.push_back(vertex.color.g);
+		vertices.push_back(vertex.color.b);
+		vertices.push_back(vertex.color.a);
+	}
+
+	std::vector<uint32_t> indices;
+
+	for (const auto& face : mesh->GetFaces())
+	{
+		const auto& face_indices = face.GetVertexIndices();
+		indices.insert(indices.end(), face_indices.begin(), face_indices.end());
+	}
+
+	size_t vertex_count = vertices.size() / 13;
+	mesh_data_entry.size = vertex_count;
+
+	mesh_data_entry.index_offset = index_offset;
+	mesh_data_entry.index_size = 0;
+	
+	if (!indices.empty())
+	{
+		size_t index_count = indices.size();
+		mesh_data_entry.index_size = index_count;
+		index_offset += index_count;
+	}
+
+	vertex_data.insert(vertex_data.end(), vertices.begin(), vertices.end());
+	index_data.insert(index_data.end(), indices.begin(), indices.end());
+
+	tri_mesh_data[mesh] = mesh_data_entry;
 
 	current_offset += vertex_count;
 }

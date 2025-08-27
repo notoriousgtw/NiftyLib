@@ -7,15 +7,58 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <type_traits>
 
 namespace nft
 {
 
 #define NFT_ERROR(Err, Msg) ErrorHandler::Error<Err>(Msg, __func__)
 #define NFT_REGISTER_ERROR(Err) ErrorHandler::Register<Err>()
-// #define NFT_WARN(Msg) ErrorHandler::Error<Warning>(Msg, __func__)
-// #define NFT_ERROR(Msg) ErrorHandler::Error<Error>(Msg, __func__)
-// #define NFT_FATAL(Msg) ErrorHandler::Error<FatalError>(Msg, __func__)
+
+// Compile-time assertions
+#define NFT_STATIC_ASSERT(condition, message) static_assert(condition, message)
+
+// Type-checking compile-time assertions
+#define NFT_STATIC_ASSERT_IS_SAME(T1, T2, message) static_assert(std::is_same_v<T1, T2>, message)
+
+#define NFT_STATIC_ASSERT_IS_BASE_OF(Base, Derived, message) static_assert(std::is_base_of_v<Base, Derived>, message)
+
+#define NFT_STATIC_ASSERT_IS_ARITHMETIC(T, message) static_assert(std::is_arithmetic_v<T>, message)
+
+#define NFT_STATIC_ASSERT_IS_POINTER(T, message) static_assert(std::is_pointer_v<T>, message)
+
+#define NFT_STATIC_ASSERT_IS_ENUM(T, message) static_assert(std::is_enum_v<T>, message)
+
+#define NFT_STATIC_ASSERT_IS_TRIVIAL(T, message) static_assert(std::is_trivial_v<T>, message)
+
+#define NFT_STATIC_ASSERT_IS_STANDARD_LAYOUT(T, message) static_assert(std::is_standard_layout_v<T>, message)
+
+// Size and alignment assertions
+#define NFT_STATIC_ASSERT_SIZE(T, expected_size, message) static_assert(sizeof(T) == expected_size, message)
+
+#define NFT_STATIC_ASSERT_SIZE_MULTIPLE(T, multiple, message) static_assert(sizeof(T) % multiple == 0, message)
+
+#define NFT_STATIC_ASSERT_ALIGNMENT(T, expected_alignment, message) static_assert(alignof(T) == expected_alignment, message)
+
+// Concept-like assertions (C++20 and later)
+//#if __cplusplus >= 202002L
+#define NFT_STATIC_ASSERT_CONSTRUCTIBLE(T, Args, message) static_assert(std::is_constructible_v<T, Args>, message)
+
+#define NFT_STATIC_ASSERT_COPY_CONSTRUCTIBLE(T, message) static_assert(std::is_copy_constructible_v<T>, message)
+
+#define NFT_STATIC_ASSERT_MOVE_CONSTRUCTIBLE(T, message) static_assert(std::is_move_constructible_v<T>, message)
+
+#define NFT_STATIC_ASSERT_DESTRUCTIBLE(T, message) static_assert(std::is_destructible_v<T>, message)
+//#endif
+
+// Value-based compile-time assertions
+#define NFT_STATIC_ASSERT_GREATER(val1, val2, message) static_assert((val1) > (val2), message)
+
+#define NFT_STATIC_ASSERT_LESS(val1, val2, message) static_assert((val1) < (val2), message)
+
+#define NFT_STATIC_ASSERT_EQUAL(val1, val2, message) static_assert((val1) == (val2), message)
+
+#define NFT_STATIC_ASSERT_NOT_EQUAL(val1, val2, message) static_assert((val1) != (val2), message)
 
 class ErrorHandler
 {

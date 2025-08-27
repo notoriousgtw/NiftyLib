@@ -299,12 +299,6 @@ std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescript
 	// Position attribute
 	attribute_descriptions.push_back(
 		vk::VertexInputAttributeDescription().setBinding(0).setLocation(0).setFormat(vk::Format::eR32G32B32Sfloat).setOffset(0));
-	// Color attribute
-	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
-										 .setBinding(0)
-										 .setLocation(1)
-										 .setFormat(vk::Format::eR32G32B32A32Sfloat)
-										 .setOffset(3 * sizeof(float)));
 	// Texture Coordinate attribute
 	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
 										 .setBinding(0)
@@ -317,6 +311,12 @@ std::vector<vk::VertexInputAttributeDescription> GetVertexInputAttributeDescript
 										 .setLocation(3)
 										 .setFormat(vk::Format::eR32G32B32Sfloat)
 										 .setOffset(9 * sizeof(float)));
+	// Color attribute
+	attribute_descriptions.push_back(vk::VertexInputAttributeDescription()
+										 .setBinding(0)
+										 .setLocation(1)
+										 .setFormat(vk::Format::eR32G32B32A32Sfloat)
+										 .setOffset(3 * sizeof(float)));
 	return attribute_descriptions;
 }
 }	 // namespace nft::vulkan

@@ -218,6 +218,8 @@ NFT_DECLARE_ERROR_TRIO(Parse)
 
 NFT_DECLARE_ERROR_TRIO(Event)
 
+NFT_DECLARE_ERROR_TRIO(Graphics)
+
 struct ColorEncodingError: public Error<ColorEncodingError>
 {
 	ColorEncodingError(std::string message, std::string function_name = ""):
