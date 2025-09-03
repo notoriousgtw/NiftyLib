@@ -1,6 +1,6 @@
 #pragma once
 
-#include "graphics/mesh.h"
+#include "graphics/mesh.h"  // This should provide graphics::TriMesh
 #include "vk/common.h"
 
 #include <map>
@@ -9,84 +9,10 @@
 namespace nft::vulkan
 {
 
-struct Material
-{
-	glm::vec3 ambient;								  // Ambient color
-	glm::vec3 diffuse;								  // Diffuse color
-	glm::vec3 specular;								  // Specular color
-	float	  specular_highlights;					  // Specular highlights intensity
-	uint32_t  ambient_texture_index	 = UINT32_MAX;	  // Index into texture array (UINT32_MAX = no texture)
-	uint32_t  diffuse_texture_index	 = UINT32_MAX;	  // Index into texture array (UINT32_MAX = no texture)
-	uint32_t  specular_texture_index = UINT32_MAX;	  // Index into texture array (UINT32_MAX = no texture)
-};
-
-// Push constant structure for per-object material data (must be <= 128 bytes)
-struct MaterialPushConstants
-{
-	alignas(16) glm::vec3 ambient;
-	alignas(16) glm::vec3 diffuse;
-	alignas(16) glm::vec3 specular;
-	alignas(4) float specular_highlights;
-	alignas(4) uint32_t diffuse_texture_index;	   // Index into texture array
-	alignas(4) uint32_t ambient_texture_index;	   // Index into texture array
-	alignas(4) uint32_t specular_texture_index;	   // Index into texture array
-	alignas(4) uint32_t padding;				   // Ensure proper alignment
-};
-
-class IMesh
-{
-  public:
-	struct VertexData
-	{
-		float x, y, z, w;		 // Position
-		float u, v;			 // Texture Coordinate
-		float nx, ny, nz;	 // Normal
-		float r, g, b, a;	 // Color
-	};
-
-	IMesh(): vertices(std::make_unique<std::vector<float>>()), indices(std::make_unique<std::vector<uint32_t>>()) {}
-	IMesh(std::vector<float> vertices_data): vertices(std::make_unique<std::vector<float>>(vertices_data)) {}
-	IMesh(std::vector<float> vertices_data, std::vector<uint32_t> indices_data):
-		vertices(std::make_unique<std::vector<float>>(vertices_data)),
-		indices(std::make_unique<std::vector<uint32_t>>(indices_data))
-	{
-	}
-	~IMesh()									   = default;
-	virtual void AddVertex(VertexData vertex_data) = 0;
-	void		 LoadObj(const std::string& file_dir, const std::string& file_name);	// Load mesh from OBJ file
-
-	// Public accessors instead of friend declarations
-	const std::vector<float>&	 GetVertices() const { return *vertices; }
-	const std::vector<uint32_t>& GetIndices() const { return *indices; }
-	std::vector<float>&			 GetVerticesRef() { return *vertices; }
-	std::vector<uint32_t>&		 GetIndicesRef() { return *indices; }
-
-  protected:
-	std::unique_ptr<std::vector<float>>	   vertices;
-	std::unique_ptr<std::vector<uint32_t>> indices;	   // Optional indices for indexed drawing
-};
-
-class SimpleMesh: public IMesh
-{
-  public:
-	SimpleMesh(): IMesh() {}
-	SimpleMesh(std::vector<float> vertices_data): IMesh(std::move(vertices_data)) {}
-	SimpleMesh(std::vector<float> vertices_data, std::vector<uint32_t> indices_data):
-		IMesh(std::move(vertices_data), std::move(indices_data))
-	{
-	}
-	~SimpleMesh() = default;
-
-	void AddVertex(VertexData vertex_data) override;
-
-  private:
-	// Additional properties or methods specific to SimpleMesh can be added here
-};
-
 class GeometryBatcher
 {
   public:
-	struct MeshData
+	struct MeshOffsets
 	{
 		size_t offset;				// Offset in the vertex_data vector
 		size_t size;				// Number of vertices in the mesh
@@ -97,26 +23,24 @@ class GeometryBatcher
 	GeometryBatcher(Device* device);
 	~GeometryBatcher() = default;
 
-	void AddGeometry(const IMesh* mesh);
 	void AddGeometry(const graphics::TriMesh* mesh);
 	void CreateBuffers(vk::CommandBuffer command_buffer, vk::Queue queue);
 
 	// Public accessors instead of friend declarations
-	Buffer*									GetVertexBuffer() const { return vertex_buffer; }
-	Buffer*									GetIndexBuffer() const { return index_buffer; }
-	const std::map<const IMesh*, MeshData>& GetMeshData() const { return mesh_data; }
-	const std::vector<float>&				GetVertexData() const { return vertex_data; }
-	const std::vector<uint32_t>&			GetIndexData() const { return index_data; }
-	bool									HasIndexData() const { return !index_data.empty(); }
+	Buffer*												   GetVertexBuffer() const { return vertex_buffer; }
+	Buffer*												   GetIndexBuffer() const { return index_buffer; }
+	const std::map<const graphics::TriMesh*, MeshOffsets>& GetMeshOffsets() const { return mesh_data; }
+	const std::vector<float>&							   GetVertexData() const { return vertex_data; }
+	const std::vector<uint32_t>&						   GetIndexData() const { return index_data; }
+	bool												   HasIndexData() const { return !index_data.empty(); }
 
   private:
-	Device*										 device;	// Device used for Vulkan operations
-	std::map<const IMesh*, MeshData>			 mesh_data;
-	std::map<const graphics::TriMesh*, MeshData> tri_mesh_data;
-	std::vector<float>							 vertex_data;
-	std::vector<uint32_t>						 index_data;			// Optional indices for indexed drawing
-	size_t										 current_offset = 0;	// Current offset in the vertex_data vector
-	size_t										 index_offset	= 0;	// Current offset in the indices_data vector
+	Device*											device;	   // Device used for Vulkan operations
+	std::map<const graphics::TriMesh*, MeshOffsets> mesh_data;
+	std::vector<float>								vertex_data;
+	std::vector<uint32_t>							index_data;			   // Optional indices for indexed drawing
+	size_t											current_offset = 0;	   // Current offset in the vertex_data vector
+	size_t											index_offset   = 0;	   // Current offset in the indices_data vector
 
 	Buffer* vertex_buffer;
 	Buffer* index_buffer;

@@ -220,6 +220,12 @@ NFT_DECLARE_ERROR_TRIO(Event)
 
 NFT_DECLARE_ERROR_TRIO(Graphics)
 
+struct AssertionFatal: public FatalError<AssertionFatal>
+{
+	AssertionFatal(std::string message, std::string function_name = ""):
+		FatalError(std::move(message), std::move(function_name)) {};
+};
+
 struct ColorEncodingError: public Error<ColorEncodingError>
 {
 	ColorEncodingError(std::string message, std::string function_name = ""):

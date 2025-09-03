@@ -8,29 +8,16 @@
 namespace nft::parse
 {
 
-ObjLoader::ObjLoader(const std::string& file_dir, const std::string& file_name)
+// Static factory method for ObjScene
+std::unique_ptr<MeshScene> MeshScene::LoadFromFile(const std::string& file_dir, const std::string& file_name)
 {
-	vertices = std::make_unique<std::vector<float>>();
-	indices	 = std::make_unique<std::vector<uint32_t>>();
-	ParseObjFile(file_dir, file_name);
+	ObjLoader loader;
+	return std::move(loader.ParseObjFile(file_dir, file_name));
 }
 
-std::unique_ptr<std::vector<float>> ObjLoader::GetVertices()
+std::unique_ptr<MeshScene> ObjLoader::ParseObjFile(const std::string& file_dir, const std::string& file_name)
 {
-	if (vertices.get() == nullptr)
-		return nullptr;
-	return std::move(vertices);
-}
-
-std::unique_ptr<std::vector<uint32_t>> ObjLoader::GetIndices()
-{
-	if (indices.get() == nullptr)
-		return nullptr;
-	return std::move(indices);
-}
-
-void ObjLoader::ParseObjFile(const std::string& file_dir, const std::string& file_name)
-{
+	obj_scene						   = std::make_unique<MeshScene>();
 	std::string				 file_path = file_dir + "/" + file_name;
 	std::string				 line;
 	std::vector<std::string> words;
@@ -47,10 +34,42 @@ void ObjLoader::ParseObjFile(const std::string& file_dir, const std::string& fil
 			continue;
 
 		if (!words[0].compare("mtllib"))
-			ParseMtlFile(file_dir, words[1]);
+			ParseMaterialLibrary(words[1]);
+
+		if (!words[0].compare("o"))
+		{
+
+			index_history.clear();
+			v.clear();
+			vt.clear();
+			vn.clear();
+			//colors.clear();
+
+			//brush_color			   = glm::vec3(1.0f);	 // Default white color
+			//current_material_index = 0;
+			//current_material_name  = "";
+
+			current_mesh = std::make_shared<Mesh>();
+			current_mesh->SetName(words.size() > 1 ? words[1] : "Mesh_" + current_mesh_index);
+			obj_scene->meshes.push_back(current_mesh);
+
+			current_node = &obj_scene->root_node.children.emplace_back();
+			current_node->mesh_indices.push_back(current_mesh_index++);
+		}
 
 		if (!words[0].compare("v"))
+		{
+			if (!current_mesh.get())
+			{
+				current_mesh = std::make_shared<Mesh>();
+				current_mesh->SetName(string::split(file_name, ".")[0]);
+				obj_scene->meshes.push_back(current_mesh);
+
+				current_node = &obj_scene->root_node;
+				current_node->mesh_indices.push_back(current_mesh_index++);
+			}
 			ReadVertexData(words);
+		}
 
 		if (!words[0].compare("vt"))
 			ReadTextureCoordData(words);
@@ -59,31 +78,55 @@ void ObjLoader::ParseObjFile(const std::string& file_dir, const std::string& fil
 			ReadNormalData(words);
 
 		if (!words[0].compare("usemtl"))
-		{
-			if (colors.contains(words[1]))
-				brush_color = colors[words[1]];	   // Use the color from the material
-			else
-				brush_color = glm::vec3(1.0);	 // Use the color from the material
-		}
+			ParseUseMaterial(words[1]);
 
 		if (!words[0].compare("f"))
 			ReadFaceData(words);
 	}
 
 	file.close();
+	return std::move(obj_scene);
+}
+
+void ObjLoader::ParseMaterialLibrary(const std::string& file_name)
+{
+	ParseMtlFile("", file_name);	// Keep compatibility with existing ParseMtlFile
+}
+
+void ObjLoader::ParseUseMaterial(const std::string& material_name)
+{
+	current_material_index = material_name_to_index[material_name];
+	if (current_material_index < obj_scene->materials.size())
+		brush_color = colors[current_material_index];
+	else
+		brush_color = glm::vec3(1.0);
 }
 
 void ObjLoader::ParseMtlFile(const std::string& file_dir, const std::string& file_name)
 {
-	std::string				 file_path = file_dir + "/" + file_name;
+	std::string full_path;
+	if (file_dir.empty())
+	{
+		// Try relative to assets/models
+		full_path = "./assets/models/" + file_name;
+	}
+	else
+	{
+		full_path = file_dir + "/" + file_name;
+	}
+
 	std::string				 line;
 	std::vector<std::string> words;
 
-	std::ifstream file(file_path);
+	std::ifstream file(full_path);
 	if (!file.is_open())
-		NFT_ERROR(FileError, "Failed to open MTL file: " + file_path);
+		NFT_ERROR(FileError, "Failed to open MTL file: " + full_path);
 
-	std::string material_name;
+	std::string current_mtl_name;
+	glm::vec3	ambient(0.1f);
+	glm::vec3	diffuse(0.8f);
+	glm::vec3	specular(0.5f);
+	float		specular_intensity = 32.0f;
 
 	while (std::getline(file, line))
 	{
@@ -93,13 +136,55 @@ void ObjLoader::ParseMtlFile(const std::string& file_dir, const std::string& fil
 			continue;
 
 		if (!words[0].compare("newmtl"))
-			material_name = words[1];
-
-		if (!words[0].compare("Kd"))
 		{
-			brush_color			  = glm::vec3(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]));
-			colors[material_name] = brush_color;	// Store the color for the material
+			// Save previous material if exists
+			if (!current_mtl_name.empty())
+			{
+				auto material =
+					std::make_shared<graphics::Material>(graphics::AmbientComponent(ambient),
+														 graphics::DiffuseComponent(diffuse),
+														 graphics::SpecularComponent(specular, UINT32_MAX, specular_intensity));
+				obj_scene->materials.push_back(material);
+				material_name_to_index[current_mtl_name] = static_cast<uint32_t>(obj_scene->materials.size() - 1);
+				colors.push_back(diffuse);
+			}
+
+			current_mtl_name = words[1];
+			// Reset to defaults
+			ambient			   = glm::vec3(0.1f);
+			diffuse			   = glm::vec3(0.8f);
+			specular		   = glm::vec3(0.5f);
+			specular_intensity = 32.0f;
 		}
+		else if (!words[0].compare("Ka") && words.size() >= 4)
+		{
+			ambient = glm::vec3(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]));
+		}
+		else if (!words[0].compare("Kd") && words.size() >= 4)
+		{
+			diffuse		= glm::vec3(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]));
+			brush_color = diffuse;	  // Keep for compatibility
+		}
+		else if (!words[0].compare("Ks") && words.size() >= 4)
+		{
+			specular = glm::vec3(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]));
+		}
+		else if (!words[0].compare("Ns") && words.size() >= 2)
+		{
+			specular_intensity = std::stof(words[1]);
+		}
+	}
+
+	// Save the last material
+	if (!current_mtl_name.empty())
+	{
+		auto material =
+			std::make_shared<graphics::Material>(graphics::AmbientComponent(ambient),
+												 graphics::DiffuseComponent(diffuse),
+												 graphics::SpecularComponent(specular, UINT32_MAX, specular_intensity));
+		obj_scene->materials.push_back(material);
+		material_name_to_index[current_mtl_name] = static_cast<uint32_t>(obj_scene->materials.size() - 1);
+		colors.push_back(diffuse);
 	}
 
 	file.close();
@@ -107,9 +192,8 @@ void ObjLoader::ParseMtlFile(const std::string& file_dir, const std::string& fil
 
 void ObjLoader::ReadVertexData(const std::vector<std::string>& words)
 {
-	glm::vec4 new_vertex		 = glm::vec4(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]), 1.0f);
-	glm::vec3 transformed_vertex = pre_transform * new_vertex;
-	v.push_back(transformed_vertex);
+	glm::vec4 new_vertex = glm::vec4(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]), 1.0f);
+	v.push_back(new_vertex);
 }
 
 void ObjLoader::ReadTextureCoordData(const std::vector<std::string>& words)
@@ -120,9 +204,8 @@ void ObjLoader::ReadTextureCoordData(const std::vector<std::string>& words)
 
 void ObjLoader::ReadNormalData(const std::vector<std::string>& words)
 {
-	glm::vec4 new_normal		 = glm::vec4(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]), 0.0f);
-	glm::vec3 transformed_normal = pre_transform * new_normal;
-	vn.push_back(transformed_normal);
+	glm::vec4 new_normal = glm::vec4(std::stof(words[1]), std::stof(words[2]), std::stof(words[3]), 0.0f);
+	vn.push_back(new_normal);
 }
 
 void ObjLoader::ReadFaceData(const std::vector<std::string>& words)
@@ -130,66 +213,43 @@ void ObjLoader::ReadFaceData(const std::vector<std::string>& words)
 	size_t triangle_count = words.size() - 3;
 
 	for (size_t i = 0; i < triangle_count; ++i)
-	{
-		ReadCorner(words.at(1));
-		ReadCorner(words.at(i + 2));
-		ReadCorner(words.at(i + 3));
-	}
+		current_mesh->AddFace({ ReadCorner(words.at(1)), ReadCorner(words.at(i + 2)), ReadCorner(words.at(i + 3)) },
+							  current_material_index);
 }
 
-void ObjLoader::ReadCorner(const std::string& vertex_description)
+uint32_t ObjLoader::ReadCorner(const std::string& vertex_description)
 {
 	if (index_history.contains(vertex_description))
-	{
-		indices->push_back(index_history[vertex_description]);
-		return;
-	}
-
-	uint32_t index = static_cast<uint32_t>(index_history.size());
-	index_history.insert({ vertex_description, index });
-	indices->push_back(index);
-
-	std::vector<std::string> v_vt_vn  = string::split(vertex_description, "/");
+		return index_history[vertex_description];
+	std::vector<std::string> v_vt_vn = string::split(vertex_description, "/");
 
 	if (v_vt_vn.size() < 1 || v_vt_vn[0].empty())
-	{
-		NFT_ERROR(FileError, "Invalid vertex description: " + vertex_description);
-		return;
-	}
+		NFT_ERROR(ParseFatal, "Invalid vertex description: " + vertex_description);
 
 	long vertex_index = std::stol(v_vt_vn[0]);
 	if (vertex_index <= 0 || static_cast<size_t>(vertex_index - 1) >= v.size())
-	{
-		NFT_ERROR(FileError, "Vertex index out of range: " + std::to_string(vertex_index));
-		return;
-	}
-	
+		NFT_ERROR(ParseFatal, "Vertex index out of range: " + std::to_string(vertex_index));
+	else
+		index_history.insert({ vertex_description, --vertex_index });
+
 	// Position
-	glm::vec3				 position = v.at(std::stol(v_vt_vn[0]) - 1);
-	vertices->push_back(position.x);
-	vertices->push_back(position.y);
-	vertices->push_back(position.z);
+	glm::vec4 position = v.at(std::stol(v_vt_vn[0]) - 1);
 
 	// Color
 	glm::vec4 color = glm::vec4(brush_color, 1.0f);
-	vertices->push_back(color.r);
-	vertices->push_back(color.g);
-	vertices->push_back(color.b);
-	vertices->push_back(color.a);
 
 	// Texture Coordinate
-	glm::vec2 texture_coord = glm::vec2(0.0f, 0.0f);
-	if (v_vt_vn.size() == 3 && !v_vt_vn[1].empty())
+	glm::vec2 texture_coord = glm::vec2(0.0f);
+	if ((v_vt_vn.size() == 2 || v_vt_vn.size() == 3) && !v_vt_vn[1].empty())
 		texture_coord = vt.at(std::stol(v_vt_vn[1]) - 1);
-	vertices->push_back(texture_coord.x);
-	vertices->push_back(texture_coord.y);
 
 	// Normal
-	glm::vec3				 normal = v.at(std::stol(v_vt_vn[2]) - 1);
-	vertices->push_back(normal.x);
-	vertices->push_back(normal.y);
-	vertices->push_back(normal.z);
+	glm::vec3 normal = glm::vec3(0.0f);
+	if (v_vt_vn.size() == 3 && !v_vt_vn[2].empty())
+		normal = v.at(std::stol(v_vt_vn[2]) - 1);
 
+	current_mesh->AddVertex(graphics::Vertex { position, texture_coord, normal, color }, vertex_index);
+	return vertex_index;
 }
 
 }	 // namespace nft::parse

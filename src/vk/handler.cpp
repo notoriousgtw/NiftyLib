@@ -18,6 +18,11 @@ std::unique_ptr<Instance>			  VulkanHandler::instance = nullptr;
 std::unique_ptr<Device>				  VulkanHandler::device	  = nullptr;
 std::vector<std::shared_ptr<Surface>> VulkanHandler::surfaces = {};
 
+// Global bindless resources
+std::unique_ptr<GlobalBindlessManager>  VulkanHandler::global_resource_manager = nullptr;
+std::unique_ptr<DescriptorPool>		    VulkanHandler::bindless_descriptor_pool = nullptr;
+std::unique_ptr<DescriptorSetLayout>    VulkanHandler::bindless_descriptor_layout = nullptr;
+
 //=============================================================================
 // INITIALIZATION METHODS
 //=============================================================================
@@ -38,6 +43,27 @@ void VulkanHandler::Init(App* app)
 #if defined(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
 	instance->InitDispatchLoaderWithDevice(device->GetDevice());
 #endif
+
+	// Initialize global bindless resources after device is ready
+	app->GetLogger()->Debug("Initializing global bindless resources...", "VKInit");
+	
+	try
+	{
+		// Setup bindless system with support for up to MAX_FRAMES frames in flight
+		SetupBindlessVertexBufferSystem(
+			device.get(), 
+			MAX_FRAMES,
+			bindless_descriptor_pool,
+			bindless_descriptor_layout,
+			global_resource_manager
+		);
+		
+		app->GetLogger()->Debug("Global bindless resources initialized successfully!", "VKInit");
+	}
+	catch (const std::exception& e)
+	{
+		NFT_ERROR(VulkanFatal, std::format("Failed to initialize global bindless resources: {}", e.what()));
+	}
 }
 
 //=============================================================================
@@ -59,7 +85,7 @@ void VulkanHandler::Render()
 	// Render the primary surface
 	try
 	{
-		surfaces[0]->Render();
+		//surfaces[0]->Render();
 	}
 	catch (const std::exception& e)
 	{
@@ -74,39 +100,78 @@ std::shared_ptr<Surface> VulkanHandler::AddSurface(Window* window)
 }
 
 //=============================================================================
-// ACCESSOR METHODS
-//=============================================================================
-
-// Surface* VulkanHandler::GetPrimarySurface()
-//{
-//     if (surfaces.empty()) {
-//         return nullptr;
-//     }
-//     return surfaces[0].get();
-// }
-
-//=============================================================================
 // CLEANUP METHODS
 //=============================================================================
 
 void VulkanHandler::ShutDown()
 {
-	device->GetDevice().waitIdle();	   // Ensure all operations are complete before cleanup
+	if (device)
+		device->GetDevice().waitIdle();	   // Ensure all operations are complete before cleanup
 
-	app->GetLogger()->Debug("Cleaning Up Vulkan Resources...", "VKShutdown");
+	if (app && app->GetLogger())
+		app->GetLogger()->Debug("Cleaning Up Vulkan Resources...", "VKShutdown");
+
+	// Clear window surface references to prevent double cleanup
+	for (auto& surface : surfaces)
+	{
+		if (surface && surface->GetWindow())
+		{
+			surface->GetWindow()->ClearSurface();
+		}
+	}
+
+	// Clean up global bindless resources first
+	if (global_resource_manager)
+	{
+		global_resource_manager.reset();
+		if (app && app->GetLogger())
+			app->GetLogger()->Debug("Global resource manager destroyed", "VKShutdown");
+	}
+	
+	if (bindless_descriptor_layout)
+	{
+		bindless_descriptor_layout.reset();
+		if (app && app->GetLogger())
+			app->GetLogger()->Debug("Bindless descriptor layout destroyed", "VKShutdown");
+	}
+	
+	if (bindless_descriptor_pool)
+	{
+		bindless_descriptor_pool.reset();
+		if (app && app->GetLogger())
+			app->GetLogger()->Debug("Bindless descriptor pool destroyed", "VKShutdown");
+	}
 
 	// CRITICAL ORDER: Clean up surfaces first while device is still valid
 	// Surfaces need the device to properly destroy their Vulkan objects
 	for (auto& surface : surfaces)
 		if (surface)
-			surface->Cleanup();	   // Explicit cleanup while device is still valid
+			surface->Cleanup();
 	surfaces.clear();
 
-	// Now it's safe to destroy device and instance
-	device.reset();
-	instance.reset();
+	// Now safely clean up device and instance
+	if (device)
+	{
+		device.reset();
+		if (app && app->GetLogger())
+			app->GetLogger()->Debug("Device destroyed successfully", "VKShutdown");
+	}
 
-	app->GetLogger()->Debug("Vulkan Cleanup Complete!", "VKShutdown");
+	if (instance)
+	{
+		instance.reset();
+		if (app && app->GetLogger())
+			app->GetLogger()->Debug("Instance destroyed successfully", "VKShutdown");
+	}
+
+	if (app && app->GetLogger())
+		app->GetLogger()->Debug("Vulkan Resources Cleaned Up Successfully!", "VKShutdown");
+}
+
+void VulkanHandler::Cleanup()
+{
+	// Alias for ShutDown for consistency
+	ShutDown();
 }
 
 }	 // namespace nft::vulkan

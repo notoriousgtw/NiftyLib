@@ -1,9 +1,8 @@
 #pragma once
 
 #include "core/log.h"
-//#include "core/event.h"
+// #include "core/event.h"
 #include "gui/window.h"
-#include "vk/scene.h"
 
 #include <set>
 #include <vector>
@@ -13,6 +12,7 @@ namespace nft
 class App
 {
 	using Window = vulkan::Window;
+
   public:
 	App() = delete;
 	App(std::string name);
@@ -27,7 +27,7 @@ class App
 		else
 			ShowWindow(console_window, SW_HIDE);
 	}
-	void AutoShowConsole()
+	void ShowConsole()
 	{
 		HWND console_window = GetConsoleWindow();
 #ifdef _DEBUG
@@ -38,17 +38,17 @@ class App
 	}
 
 	~App();
-	Logger*		 GetLogger() { return &logger; }
-	std::string	 GetName() { return name; }
-	Window* GetMainWindow() { return main_window; }
+	Logger*					GetLogger() { return &logger; }
+	std::string				GetName() { return name; }
+	std::shared_ptr<Window> GetMainWindow() { return main_window; }
 
   protected:
 	std::string name;
 	Logger		logger;
 	// vk::Instance instance { nullptr };
 
-	Window*						   main_window;
-	std::set<std::unique_ptr<Window>> windows;
+	std::shared_ptr<Window>			  main_window;
+	std::set<std::shared_ptr<Window>> windows;
 
 	// void CreateInstance();
 
@@ -63,11 +63,11 @@ class App
 	void		 EndFrameCore();
 	void		 Render();
 
-	double last_time = 0;
+	double last_time	= 0;
 	double current_time = 0;
-	int	   num_frames = 0;
-	int	   frame_rate = 0;
-	float  frame_time = 0;
+	int	   num_frames	= 0;
+	int	   frame_rate	= 0;
+	float  frame_time	= 0;
 
 	void CalcFrameTime();
 };

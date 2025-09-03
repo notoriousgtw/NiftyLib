@@ -6,8 +6,8 @@
 
 #include <memory>
 #include <string>
-#include <vector>
 #include <type_traits>
+#include <vector>
 
 namespace nft
 {
@@ -41,7 +41,7 @@ namespace nft
 #define NFT_STATIC_ASSERT_ALIGNMENT(T, expected_alignment, message) static_assert(alignof(T) == expected_alignment, message)
 
 // Concept-like assertions (C++20 and later)
-//#if __cplusplus >= 202002L
+// #if __cplusplus >= 202002L
 #define NFT_STATIC_ASSERT_CONSTRUCTIBLE(T, Args, message) static_assert(std::is_constructible_v<T, Args>, message)
 
 #define NFT_STATIC_ASSERT_COPY_CONSTRUCTIBLE(T, message) static_assert(std::is_copy_constructible_v<T>, message)
@@ -49,7 +49,7 @@ namespace nft
 #define NFT_STATIC_ASSERT_MOVE_CONSTRUCTIBLE(T, message) static_assert(std::is_move_constructible_v<T>, message)
 
 #define NFT_STATIC_ASSERT_DESTRUCTIBLE(T, message) static_assert(std::is_destructible_v<T>, message)
-//#endif
+// #endif
 
 // Value-based compile-time assertions
 #define NFT_STATIC_ASSERT_GREATER(val1, val2, message) static_assert((val1) > (val2), message)
@@ -59,6 +59,50 @@ namespace nft
 #define NFT_STATIC_ASSERT_EQUAL(val1, val2, message) static_assert((val1) == (val2), message)
 
 #define NFT_STATIC_ASSERT_NOT_EQUAL(val1, val2, message) static_assert((val1) != (val2), message)
+
+#ifdef _DEBUG
+#define NFT_ASSERT(condition, message)                                                            \
+	do                                                                                            \
+	{                                                                                             \
+		if (!(condition))                                                                         \
+		{                                                                                         \
+			ErrorHandler::Error<AssertionFatal>(                                                  \
+				std::string("Assertion Failed: ") + #condition +                                  \
+					(message && strlen(message) > 0 ? std::string("\nMessage: ") + message : ""), \
+				__func__);                                                                        \
+		}                                                                                         \
+	} while (0)
+
+#define NFT_ASSERT_MSG(condition, message) NFT_ASSERT(condition, message)
+
+#define NFT_ASSERT_EQ(expected, actual, message) \
+	NFT_ASSERT((expected) == (actual),           \
+			   std::string(message) + "\nExpected: " + std::to_string(expected) + ", Actual: " + std::to_string(actual))
+
+#define NFT_ASSERT_NE(val1, val2, message) \
+	NFT_ASSERT((val1) != (val2), std::string(message) + "\nValues should not be equal: " + std::to_string(val1))
+
+#define NFT_ASSERT_LT(val1, val2, message) \
+	NFT_ASSERT((val1) < (val2),            \
+			   std::string(message) + "\n" + std::to_string(val1) + " should be less than " + std::to_string(val2))
+
+#define NFT_ASSERT_GT(val1, val2, message) \
+	NFT_ASSERT((val1) > (val2),            \
+			   std::string(message) + "\n" + std::to_string(val1) + " should be greater than " + std::to_string(val2))
+
+#define NFT_ASSERT_NULL(ptr, message) NFT_ASSERT((ptr) == nullptr, std::string(message) + "\nPointer should be null")
+
+#define NFT_ASSERT_NOT_NULL(ptr, message) NFT_ASSERT((ptr) != nullptr, std::string(message) + "\nPointer should not be null")
+#else
+#define NFT_ASSERT(condition, message) ((void)0)
+#define NFT_ASSERT_MSG(condition, message) ((void)0)
+#define NFT_ASSERT_EQ(expected, actual, message) ((void)0)
+#define NFT_ASSERT_NE(val1, val2, message) ((void)0)
+#define NFT_ASSERT_LT(val1, val2, message) ((void)0)
+#define NFT_ASSERT_GT(val1, val2, message) ((void)0)
+#define NFT_ASSERT_NULL(ptr, message) ((void)0)
+#define NFT_ASSERT_NOT_NULL(ptr, message) ((void)0)
+#endif
 
 class ErrorHandler
 {
@@ -92,8 +136,8 @@ class ErrorHandler
 	template<typename E>
 	static void Register()
 	{
-		//static_assert(std::is_base_of<Warning, E>::value || std::is_base_of<nft::Error, E>::value || std::is_base_of<FatalError, E>::value,
-		//			  "E must derive from Error");
+		// static_assert(std::is_base_of<Warning, E>::value || std::is_base_of<nft::Error, E>::value ||
+		// std::is_base_of<FatalError, E>::value, 			  "E must derive from Error");
 		const std::string code = E::GetCode();
 		if (!error_codes.insert(code).second)
 		{

@@ -92,11 +92,11 @@ class Device
 	BufferManager* GetBufferManager() { return buffer_manager.get(); }
 
 	// Public access to core members (for easier interop between Vulkan wrappers)
-	QueueFamilyIndices queue_family_indices;  // Made public for easier access
-	vk::Queue vk_graphics_queue = nullptr;    // Made public for easier access
-	vk::Queue vk_present_queue = nullptr;     // Made public for easier access
-	vk::PhysicalDevice vk_physical_device = nullptr;  // Made public for easier access
-	vk::Device vk_device;                     // Made public for easier access
+	QueueFamilyIndices queue_family_indices;			// Made public for easier access
+	vk::Queue		   vk_graphics_queue  = nullptr;	// Made public for easier access
+	vk::Queue		   vk_present_queue	  = nullptr;	// Made public for easier access
+	vk::PhysicalDevice vk_physical_device = nullptr;	// Made public for easier access
+	vk::Device		   vk_device;						// Made public for easier access
 
   private:
 	//=========================================================================
@@ -108,7 +108,8 @@ class Device
 	App*	  app	   = nullptr;
 
 	// Resource managers
-	std::unique_ptr<BufferManager> buffer_manager;  // Keep unique_ptr for ownership
+	std::unique_ptr<BufferManager>	 buffer_manager;	// Keep unique_ptr for ownership
+	std::unique_ptr<GeometryBatcher> geometry_batcher;
 
 	// Device selection data
 	std::vector<vk::PhysicalDevice> available_devices;

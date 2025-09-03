@@ -14,7 +14,7 @@ namespace nft
 App::App(std::string name)
 {
 	this->name = std::move(name);
-	AutoShowConsole();
+	ShowConsole();
 	logger = Logger(this->name);
 #ifdef _DEBUG
 	logger.SetVerbose(true);
@@ -39,8 +39,8 @@ void App::Init()
 	vulkan::VulkanHandler::Init(this);
 
 	// Add main window to stack
-	auto window = std::make_unique<Window>(1280, 960, "Nifty App");
-	main_window = window.get();
+	auto window = std::make_shared<Window>(1280, 960, "Nifty App");
+	main_window = window;
 	windows.insert(std::move(window));
 
 
@@ -79,7 +79,7 @@ void App::EndFrameCore() {}
 void App::Render()
 {
 	// Render
-	vulkan::VulkanHandler::Render();
+	//vulkan::VulkanHandler::Render();
 }
 
 void App::CalcFrameTime()

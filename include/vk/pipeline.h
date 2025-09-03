@@ -1,15 +1,18 @@
 #pragma once
 
+#include "graphics/material.h"
 #include "vk/common.h"
-#include "vk/shader.h"
+#include "vk/descriptors.h"
 #include "vk/image.h"
+#include "vk/resources.h"
+#include "vk/shader.h"
+#include <unordered_map>
 
 // Forward declarations to break circular dependencies
-namespace nft::vulkan 
+namespace nft::vulkan
 {
 class Surface;
-class Scene;
-}
+}	 // namespace nft::vulkan
 
 namespace nft::vulkan
 {
@@ -19,28 +22,29 @@ namespace nft::vulkan
 //=========================================================================
 class Device;
 class Surface;
-class Scene;
 struct GeometryBatcher;
 
 //=========================================================================
-// UNIFORM BUFFER OBJECT
+// ENTITY RENDER DATA STRUCTURE
 //=========================================================================
-struct UniformBufferObject
+// Structure to track render data per entity
+struct EntityRenderData
 {
-	glm::mat4 view;
-	glm::mat4 proj;
-	glm::vec3 pos;
+	uint32_t vertex_offset;
+	uint32_t vertex_count;
+	uint32_t index_offset;
+	uint32_t index_count;
+	uint32_t transform_index;
+	uint32_t material_index;
 };
 
 //=========================================================================
 // CONSTANTS
 //=========================================================================
-constexpr uint32_t MAX_OBJECTS = 1000;  // Maximum number of objects in the scene
 
 //=========================================================================
 // PIPELINE STAGES
 //=========================================================================
-
 // Base pipeline stage - now uses device reference only
 struct PipelineStage
 {
@@ -50,10 +54,20 @@ struct PipelineStage
 	Device* device;
 };
 
+enum class ShaderType
+{
+	Vertex,
+	Geometry,
+	Fragment,
+	Compute
+};
+
 // Shader stage base
 struct ShaderStage: public PipelineStage
 {
 	ShaderStage(Device* device): PipelineStage(device) {}
+
+	virtual void Init(Shader::ShaderCode code) = 0;
 
 	vk::PipelineShaderStageCreateInfo vk_shader_stage_info;
 	std::unique_ptr<Shader>			  shader;
@@ -63,12 +77,48 @@ struct ShaderStage: public PipelineStage
 struct VertexShaderStage: public ShaderStage
 {
 	VertexShaderStage(Device* device): ShaderStage(device) {}
+	void Init(Shader::ShaderCode code) override
+	{
+		if (shader.get())
+			shader.reset();
+		shader				 = std::make_unique<Shader>(device, code);
+		vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
+								   .setStage(vk::ShaderStageFlagBits::eVertex)
+								   .setModule(shader->GetShaderModule())
+								   .setPName("main");
+	}
+};
+
+// Geometry shader stage
+struct GeometryShaderStage: public ShaderStage
+{
+	GeometryShaderStage(Device* device): ShaderStage(device) {}
+	void Init(Shader::ShaderCode code) override
+	{
+		if (shader.get())
+			shader.reset();
+		shader				 = std::make_unique<Shader>(device, code);
+		vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
+								   .setStage(vk::ShaderStageFlagBits::eGeometry)
+								   .setModule(shader->GetShaderModule())
+								   .setPName("main");
+	}
 };
 
 // Fragment shader stage
 struct FragmentShaderStage: public ShaderStage
 {
 	FragmentShaderStage(Device* device): ShaderStage(device) {}
+	void Init(Shader::ShaderCode code) override
+	{
+		if (shader.get())
+			shader.reset();
+		shader				 = std::make_unique<Shader>(device, code);
+		vk_shader_stage_info = vk::PipelineShaderStageCreateInfo()
+								   .setStage(vk::ShaderStageFlagBits::eFragment)
+								   .setModule(shader->GetShaderModule())
+								   .setPName("main");
+	}
 };
 
 // Vertex input stage
@@ -154,6 +204,8 @@ struct DescriptorSetLayout
 
 	DescriptorSetLayout(Surface* surface);
 	DescriptorSetLayout(Device* device);
+	~DescriptorSetLayout() { Cleanup(); }
+
 	void Init(std::vector<Binding> bindings);
 	void Cleanup();
 
@@ -171,6 +223,8 @@ struct DescriptorPool
 	using Binding = DescriptorSetLayout::Binding;
 
 	DescriptorPool(Device* device): device(device) {}
+	~DescriptorPool() { Cleanup(); }
+
 	void Init(std::vector<Binding> bindings, uint32_t count);
 	void Cleanup();
 
@@ -185,8 +239,10 @@ struct DescriptorPool
 struct PipelineLayout
 {
 	PipelineLayout(Device* device): device(device) {}
-	void Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts, 
-			  std::vector<vk::PushConstantRange> push_constant_ranges = {});
+	~PipelineLayout() { Cleanup(); }
+
+	void Init(std::vector<vk::DescriptorSetLayout> descriptor_set_layouts,
+			  std::vector<vk::PushConstantRange>   push_constant_ranges = {});
 	void Cleanup();
 
 	vk::PipelineLayout			 vk_pipeline_layout = VK_NULL_HANDLE;
@@ -200,10 +256,12 @@ struct PipelineLayout
 struct RenderPass
 {
 	RenderPass(Device* device): device(device) {}
+	~RenderPass() { Cleanup(); }
+
 	void Init(vk::Format color_format, vk::Format depth_format);
 	void Init(const std::vector<vk::AttachmentDescription>& attachments,
-			  const std::vector<vk::SubpassDescription>& subpasses,
-			  const std::vector<vk::SubpassDependency>& dependencies = {});
+			  const std::vector<vk::SubpassDescription>&	subpasses,
+			  const std::vector<vk::SubpassDependency>&		dependencies = {});
 	void Cleanup();
 
 	vk::RenderPass			  vk_render_pass = VK_NULL_HANDLE;
@@ -239,30 +297,20 @@ struct Frame
 	vk::Semaphore image_available_semaphore = VK_NULL_HANDLE;
 	vk::Semaphore render_finished_semaphore = VK_NULL_HANDLE;
 
-	// Frame resources
-	UniformBufferObject	   camera_data;
-	Buffer*				   camera_data_buffer = nullptr;
-	void*				   camera_data_ptr	  = nullptr;
-	std::vector<glm::mat4> object_transforms;
-	Buffer*				   object_transform_buffer = nullptr;
-	void*				   object_transform_ptr	   = nullptr;
+	// Frame index for bindless camera data access
+	uint32_t frame_index = 0;
 
-	// Resource descriptors
-	vk::DescriptorSet vk_descriptor_set = VK_NULL_HANDLE;	 // Frame data (camera + transforms)
+	// Camera data for this frame (stored in shared bindless buffer)
+	CameraData camera_data;
 
 	// Methods
-	void Init(Surface* surface, Scene* scene);
-	void MakeDescriptorResources();
-	void AllocateDescriptorResources();
-	void AllocateFrameDescriptorSet(DescriptorPool* frame_descriptor_pool, DescriptorSetLayout* frame_set_layout);
-	void MakeDepthResources();
+	void Init(Surface* surface, uint32_t frame_idx);
 	void Prepare(glm::mat4 camera_transforms);
 	void Cleanup();
 
   private:
 	Surface* surface = nullptr;	   // Pointer to the parent surface
 	Device*	 device	 = nullptr;
-	Scene*	 scene	 = nullptr;
 };
 
 //=========================================================================
@@ -272,7 +320,7 @@ enum class PipelineType
 {
 	Graphics,
 	Compute,
-	RayTracing  // For future use
+	RayTracing	  // For future use
 };
 
 //=========================================================================
@@ -285,23 +333,21 @@ class AbstractPipeline
 	virtual ~AbstractPipeline();
 
 	// Core pipeline interface
-	virtual void Init() = 0;
-	virtual void AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage) = 0;
-	virtual void Create() = 0;
-	virtual void Recreate() = 0;
+	// virtual void Init() = 0;
+	// virtual void AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage) = 0;
 	virtual void Cleanup();
 
 	// Getters
-	const vk::Pipeline& GetVkPipeline() const { return vk_pipeline; }
+	const vk::Pipeline&		  GetVkPipeline() const { return vk_pipeline; }
 	const vk::PipelineLayout& GetPipelineLayout() const { return pipeline_layout.vk_pipeline_layout; }
-	PipelineType GetPipelineType() const { return pipeline_type; }
+	PipelineType			  GetPipelineType() const { return pipeline_type; }
 
 	// Command pool access for all pipeline types
-	vk::CommandPool GetCommandPool() const { return vk_command_pool; }
+	vk::CommandPool	  GetCommandPool() const { return vk_command_pool; }
 	vk::CommandBuffer GetCommandBuffer() const { return vk_command_buffer; }
 
   protected:
-	Device* device = nullptr;
+	Device*		 device = nullptr;
 	PipelineType pipeline_type;
 
 	// Command objects - common to all pipeline types
@@ -310,203 +356,183 @@ class AbstractPipeline
 	vk::CommandPoolCreateInfo vk_command_pool_info;
 
 	// Core pipeline objects - common to all pipeline types
-	vk::Pipeline						 vk_pipeline = VK_NULL_HANDLE;
-	std::vector<ShaderStage>			 shader_stages;
-	std::vector<vk::DescriptorSetLayout> vk_descriptor_set_layouts;
-	PipelineLayout						 pipeline_layout;
+	vk::Pipeline												 vk_pipeline = VK_NULL_HANDLE;
+	std::unordered_map<ShaderType, std::unique_ptr<ShaderStage>> shader_stages;
+	std::vector<vk::DescriptorSetLayout>						 vk_descriptor_set_layouts;
+	PipelineLayout												 pipeline_layout;
 
 	// Virtual methods for customization
 	virtual void SetupDescriptorLayouts() = 0;
 	virtual void CreateCommandPool();
 };
 
+class ComputeComponentBase
+{
+  public:
+	virtual ~ComputeComponentBase() = default;
+
+	// Core compute interface
+
+	// Pipeline management
+	virtual void Create()	= 0;
+	virtual void Recreate() = 0;
+	// virtual void CreatePipeline() = 0;
+	// virtual void RecreatePipeline() = 0;
+};
+
 //=========================================================================
 // ABSTRACT RENDERER INTERFACE - For graphics pipelines
 //=========================================================================
-class IRenderer
+class RenderPipelineBase: public AbstractPipeline
 {
   public:
-	virtual ~IRenderer() = default;
-	
-	// Core rendering interface
-	virtual void PrepareScene(vk::CommandBuffer command_buffer) = 0;
-	virtual void RecordDrawCommands(Frame& frame, uint32_t image_index) = 0;
-	virtual void CreateTextureDescriptorSet() = 0;
-	
+	RenderPipelineBase(Device* device, PipelineType type);
+	virtual ~RenderPipelineBase() = default;
+
+	virtual void RecordDrawCommands(vk::CommandBuffer command_buffer, uint32_t image_index) = 0;
+	virtual void RecordDrawCommandsWithEntities(vk::CommandBuffer command_buffer, uint32_t image_index, 
+												const std::vector<EntityRenderData>& entities) = 0;
+	void		 SetVertexShader(Shader::ShaderCode shader_code);
+	void		 SetGeometryShader(Shader::ShaderCode shader_code);
+	void		 SetFragmentShader(Shader::ShaderCode shader_code);
+
 	// Pipeline management
-	virtual void CreatePipeline() = 0;
-	virtual void RecreatePipeline() = 0;
-};
-
-//=========================================================================
-// GRAPHICS PIPELINE BASE CLASS
-//=========================================================================
-class GraphicsPipelineBase : public AbstractPipeline, public IRenderer
-{
-  public:
-	GraphicsPipelineBase(Device* device);
-	virtual ~GraphicsPipelineBase() = default;
-
-	// AbstractPipeline implementation
-	void Init() override { /* Default implementation, can be overridden */ }
-	void AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage) override;
-	void Create() override;
-	void Recreate() override;
-	void Cleanup() override;
-
-	// Graphics-specific methods
-	void InitGraphics(vk::Extent2D extent, vk::Format color_format, vk::Format depth_format);
-	void InitGraphics(vk::Extent2D extent, const RenderPass& render_pass);
-	
-	// Getters for graphics-specific objects
-	const vk::RenderPass& GetRenderPass() const { return render_pass.vk_render_pass; }
+	virtual void Create(const RenderPass& render_pass)	 = 0;
+	virtual void Recreate(const RenderPass& render_pass) = 0;
 
   protected:
-	// Graphics-specific pipeline stages
-	VertexInputStage					 vertex_input_stage;
-	InputAssemblyStage					 input_assembly_stage;
-	ViewportStage						 viewport_stage;
-	RasterizationStage					 rasterization_stage;
-	DepthStencilStage					 depth_stencil_stage;
-	MultisampleStage					 multisample_stage;
-	ColorBlendStage						 color_blend_stage;
-	RenderPass							 render_pass;
-	vk::GraphicsPipelineCreateInfo		 vk_pipeline_info;
+	// Override the abstract method from AbstractPipeline
+	void SetupDescriptorLayouts() override;
 
-	// Virtual methods for graphics pipeline customization
-	virtual void SetupPipelineStages(vk::Extent2D extent);
+	vk::GraphicsPipelineCreateInfo vk_pipeline_info;
+
+	// Pipeline stages
+	VertexInputStage	   vertex_input_stage;
+	InputAssemblyStage	   input_assembly_stage;
+	ViewportStage		   viewport_stage;
+	RasterizationStage	   rasterization_stage;
+	DepthStencilStage	   depth_stencil_stage;
+	MultisampleStage	   multisample_stage;
+	ColorBlendStage		   color_blend_stage;
+	GlobalBindlessManager* bindless_resource_manager = nullptr;
+
+	// Descriptor layout for bindless resources
+	//DescriptorSetLayout bindless_set_layout;
 };
+
+class SwapchainRenderPipeline: public RenderPipelineBase
+{
+  public:
+	SwapchainRenderPipeline(Surface* surface, PipelineType type);
+	~SwapchainRenderPipeline() = default;
+
+	void RecordDrawCommands(vk::CommandBuffer command_buffer, uint32_t image_index) override;
+	
+	// New method to record draw commands with entity data
+	void RecordDrawCommandsWithEntities(vk::CommandBuffer command_buffer, uint32_t image_index, 
+										const std::vector<EntityRenderData>& entities) override;
+
+	// Bind the global bindless descriptor set for rendering
+	void BindGlobalBindlessDescriptors(vk::CommandBuffer command_buffer, uint32_t frame_index);
+
+	// RenderPipelineBase implementation
+	void Create(const RenderPass& render_pass) override;
+	void Recreate(const RenderPass& render_pass) override;
+
+  protected:
+	Surface* surface;
+};
+
+// class OffscreenRenderPipeline: public RenderPipelineBase
+//{
+//   public:
+//	virtual ~OffscreenRenderPipeline() = default;
+//
+//	// RenderPipelineBase implementation
+//	// void Create(RenderPass render_pass) override;
+//	// void Recreate(RenderPass render_pass) override;
+// };
 
 //=========================================================================
 // COMPUTE PIPELINE BASE CLASS
 //=========================================================================
-class ComputePipelineBase : public AbstractPipeline
-{
-  public:
-	ComputePipelineBase(Device* device);
-	virtual ~ComputePipelineBase() = default;
-
-	// AbstractPipeline implementation
-	void Init() override { /* Default implementation, can be overridden */ }
-	void AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage) override;
-	void Create() override;
-	void Recreate() override;
-
-	// Compute-specific methods
-	void Dispatch(uint32_t group_count_x, uint32_t group_count_y = 1, uint32_t group_count_z = 1);
-	void Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z, 
-				  vk::CommandBuffer command_buffer);
-
-  protected:
-	vk::ComputePipelineCreateInfo vk_compute_pipeline_info;
-	
-	// Virtual methods for compute pipeline customization
-	virtual void SetupComputeStage() = 0;
-};
+// class ComputePipelineBase: public AbstractPipeline
+//{
+//  public:
+//	ComputePipelineBase(Device* device);
+//	virtual ~ComputePipelineBase() = default;
+//
+//	// AbstractPipeline implementation
+//	//void Init() override {  Default implementation, can be overridden */ }
+//	void AddShaderStage(Shader::ShaderCode shader_code, vk::ShaderStageFlagBits stage) override;
+//
+//	// Compute-specific methods
+//	void Dispatch(uint32_t group_count_x, uint32_t group_count_y = 1, uint32_t group_count_z = 1);
+//	void Dispatch(uint32_t group_count_x, uint32_t group_count_y, uint32_t group_count_z, vk::CommandBuffer command_buffer);
+//
+//  protected:
+//	vk::ComputePipelineCreateInfo vk_compute_pipeline_info;
+//
+//	// Virtual methods for compute pipeline customization
+//	virtual void SetupComputeStage() = 0;
+//};
 
 //=========================================================================
-// SWAPCHAIN GRAPHICS PIPELINE - Renders to swapchain
+// OFFSCREEN GRAPHICS PIPELINE - RENDERS TO CUSTOM FRAMEBUFFER
 //=========================================================================
-class GraphicsPipeline : public GraphicsPipelineBase
-{
-  public:
-	GraphicsPipeline(Device* device, Scene* scene);
-	~GraphicsPipeline() override = default;
-
-	// AbstractPipeline implementation
-	void Init() override;
-
-	// IRenderer implementation
-	void PrepareScene(vk::CommandBuffer command_buffer) override;
-	void RecordDrawCommands(Frame& frame, uint32_t image_index) override;
-	void CreateTextureDescriptorSet() override;
-	void CreatePipeline() override;
-	void RecreatePipeline() override;
-
-	// Specific to swapchain graphics pipeline
-	void SetScene(Scene* scene) { this->scene = scene; }
-	Scene* GetScene() const { return scene; }
-	
-	// Public access to descriptor resources for frame allocation
-	DescriptorPool* GetFrameDescriptorPool() { return &frame_descriptor_pool; }
-	DescriptorSetLayout* GetFrameSetLayout() { return &frame_set_layout; }
-
-  protected:
-	void SetupDescriptorLayouts() override;
-
-  private:
-	Scene* scene = nullptr;
-	vk::DescriptorSet texture_descriptor_set = VK_NULL_HANDLE;
-
-	// Scene-specific descriptor resources
-	DescriptorSetLayout frame_set_layout;
-	DescriptorSetLayout texture_set_layout;
-	DescriptorPool frame_descriptor_pool;
-	DescriptorPool texture_descriptor_pool;
-
-	vk::ClearValue clear_color;
-	vk::ClearValue clear_depth;
-};
-
-//=========================================================================
-// OFFSCREEN GRAPHICS PIPELINE - Renders to custom framebuffer
-//=========================================================================
-class OffscreenGraphicsPipeline : public GraphicsPipelineBase
-{
-  public:
-	OffscreenGraphicsPipeline(Device* device, vk::Extent2D extent, 
-							  vk::Format color_format, vk::Format depth_format = vk::Format::eUndefined);
-	~OffscreenGraphicsPipeline() = default;
-
-	// AbstractPipeline implementation
-	void Init() override;
-
-	// IRenderer implementation
-	void PrepareScene(vk::CommandBuffer command_buffer) override { /* Custom implementation */ }
-	void RecordDrawCommands(Frame& frame, uint32_t image_index) override { /* Custom implementation */ }
-	void CreateTextureDescriptorSet() override { /* Custom implementation */ }
-	void CreatePipeline() override;
-	void RecreatePipeline() override;
-
-	// Offscreen-specific methods
-	void SetRenderTarget(Image* color_target, Image* depth_target = nullptr);
-	void CreateFramebuffer();
-	Image* GetColorTarget() const { return color_target; }
-	Image* GetDepthTarget() const { return depth_target; }
-
-  protected:
-	void SetupDescriptorLayouts() override;
-
-  private:
-	vk::Extent2D extent;
-	vk::Format color_format;
-	vk::Format depth_format;
-	
-	Image* color_target = nullptr;
-	Image* depth_target = nullptr;
-	vk::Framebuffer framebuffer = VK_NULL_HANDLE;
-};
+// class OffscreenGraphicsPipeline: public GraphicsPipelineBase
+//{
+//   public:
+//	OffscreenGraphicsPipeline(Device*	   device,
+//							  vk::Extent2D extent,
+//							  vk::Format   color_format,
+//							  vk::Format   depth_format = vk::Format::eUndefined);
+//	~OffscreenGraphicsPipeline() = default;
+//
+//	// AbstractPipeline implementation
+//	void Init() override;
+//
+//	// RenderPipelineBase implementation
+//
+//	// Offscreen-specific methods
+//	void   SetRenderTarget(Image* color_target, Image* depth_target = nullptr);
+//	void   CreateFramebuffer();
+//	Image* GetColorTarget() const { return color_target; }
+//	Image* GetDepthTarget() const { return depth_target; }
+//
+//  protected:
+//	void SetupDescriptorLayouts() override;
+//
+//  private:
+//	vk::Extent2D extent;
+//	vk::Format	 color_format;
+//	vk::Format	 depth_format;
+//
+//	Image*			color_target = nullptr;
+//	Image*			depth_target = nullptr;
+//	vk::Framebuffer framebuffer	 = VK_NULL_HANDLE;
+//};
 
 //=========================================================================
 // EXAMPLE COMPUTE PIPELINE
 //=========================================================================
-class ExampleComputePipeline : public ComputePipelineBase
-{
-  public:
-	ExampleComputePipeline(Device* device);
-	~ExampleComputePipeline() = default;
-
-	// AbstractPipeline implementation
-	void Init() override;
-
-  protected:
-	void SetupDescriptorLayouts() override;
-	void SetupComputeStage() override;
-
-  private:
-	DescriptorSetLayout compute_set_layout;
-	DescriptorPool compute_descriptor_pool;
-};
+// class ExampleComputePipeline: public ComputePipelineBase
+//{
+//  public:
+//	ExampleComputePipeline(Device* device);
+//	~ExampleComputePipeline() = default;
+//
+//	// AbstractPipeline implementation
+//	void Init() override;
+//
+//  protected:
+//	void SetupDescriptorLayouts() override;
+//	void SetupComputeStage() override;
+//
+//  private:
+//	DescriptorSetLayout compute_set_layout;
+//	DescriptorPool		compute_descriptor_pool;
+//};
 
 // Returns a descriptor set
 vk::DescriptorSet GetDescriptorSet(Device* device, DescriptorPool* pool, DescriptorSetLayout* layout);

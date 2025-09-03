@@ -241,10 +241,22 @@ void Device::CreateDevice()
                 .setPQueuePriorities(&queue_priority));
     }
 
-    // Setup device features (none required currently)
+    // Setup device features
     device_features = vk::PhysicalDeviceFeatures().setSamplerAnisotropy(VK_TRUE);
+    
+    // Enable Vulkan 1.2 features for descriptor indexing (includes all descriptor indexing features)
+    vk::PhysicalDeviceVulkan12Features vulkan12_features = vk::PhysicalDeviceVulkan12Features()
+        .setDescriptorIndexing(VK_TRUE)  // Enable descriptor indexing extension features
+        .setRuntimeDescriptorArray(VK_TRUE)
+        .setDescriptorBindingPartiallyBound(VK_TRUE)
+        .setDescriptorBindingVariableDescriptorCount(VK_TRUE)
+        .setDescriptorBindingUpdateUnusedWhilePending(VK_TRUE)
+        .setShaderSampledImageArrayNonUniformIndexing(VK_TRUE)
+        .setShaderStorageBufferArrayNonUniformIndexing(VK_TRUE)  // Required for storage buffer arrays
+        .setDescriptorBindingSampledImageUpdateAfterBind(VK_TRUE)
+        .setDescriptorBindingStorageBufferUpdateAfterBind(VK_TRUE);
 
-    // Create device info structure
+    // Create device info structure (only use Vulkan 1.2 features, not the separate descriptor indexing features)
     vk_device_info = vk::DeviceCreateInfo()
                          .setFlags(vk::DeviceCreateFlags())
                          .setQueueCreateInfoCount(vk_device_queue_info.size())
@@ -253,7 +265,8 @@ void Device::CreateDevice()
                          .setPpEnabledLayerNames(layers.data())
                          .setEnabledExtensionCount(extensions.size())
                          .setPpEnabledExtensionNames(extensions.data())
-                         .setPEnabledFeatures(&device_features);
+                         .setPEnabledFeatures(&device_features)
+                         .setPNext(&vulkan12_features);
 
     // Create the logical device
     try

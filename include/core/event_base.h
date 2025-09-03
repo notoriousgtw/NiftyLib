@@ -13,6 +13,26 @@ namespace nft::Event
 // class App;
 class EventHandler;
 
+class IEvent
+{
+  public:
+	IEvent(EventHandler* event_handler): event_handler(event_handler) {};
+	virtual ~IEvent() = default;
+	// virtual void		Notify()		= 0;
+	EventHandler* event_handler = nullptr;
+};
+
+class WindowResizeEvent : public IEvent
+{
+  public:
+	WindowResizeEvent(EventHandler* event_handler, int new_width, int new_height)
+		: IEvent(event_handler), width(new_width), height(new_height)
+	{
+	}
+	int width;
+	int height;
+};
+
 enum class Key : int32_t
 {
 	D0,
@@ -199,15 +219,6 @@ Action		  GetAction(int32_t action);
 int32_t		  GetGLFWAction(Action action);
 ModifierFlags GetModifiers(uint32_t mods);
 uint32_t	  GetGLFWModifiers(ModifierFlags mods);
-
-class IEvent
-{
-  public:
-	IEvent(EventHandler* event_handler): event_handler(event_handler) {};
-	virtual ~IEvent() = default;
-	// virtual void		Notify()		= 0;
-	EventHandler* event_handler = nullptr;
-};
 
 struct KeyEvent: public IEvent
 {

@@ -1,6 +1,7 @@
 #include "core/observer.h"
 
 #include "core/error.h"
+#include "gui/window.h"  // Add this include for Window class definition
 
 namespace nft::Event
 {
@@ -41,6 +42,21 @@ void MouseHandler::DisableRawMouseMotion()
 		glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_RAW_MOUSE_MOTION, GLFW_FALSE);
 	else
 		NFT_ERROR(EventError, "Raw mouse motion not supported on this system!");
+}
+
+void MouseHandler::SetCursorDisabled()
+{
+	glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+}
+
+void MouseHandler::SetCursorHidden()
+{
+	glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+}
+
+void MouseHandler::SetCursorNormal()
+{
+	glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 }
 
 }	 // namespace nft::Event

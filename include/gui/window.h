@@ -1,7 +1,8 @@
 #pragma once
 
 #include "core/event_base.h"
-
+#include "core/observer.h"  // Add this for Event::EventHandler
+#include "vk/common.h"      // For vk::Extent2D
 #include "core/glfw_common.h"
 #include <memory>
 #include <string>
@@ -22,8 +23,18 @@ class Window
 	Window(int width, int height, std::string title): width(width), height(height), title(title) { Init(); };
 	Window(const Window&)			 = delete;
 	Window& operator=(const Window&) = delete;
+	~Window() {
+		// Clear surface reference before destroying window to prevent double cleanup
+		surface.reset();
+		
+		if (window)
+		{
+			glfwDestroyWindow(window);
+			window = nullptr;	
+		}
+	};
 
-	//void CreateWindowSurface();
+	// void CreateWindowSurface();
 
 	// std::vector<std::unique_ptr<Event>> events;
 	std::string GetTitle() const { return title; };
@@ -39,8 +50,9 @@ class Window
 		height = new_height;
 		glfwSetWindowSize(window, width, height);
 	};
-	int GetWidth() const { return width; };
-	int GetHeight() const { return height; };
+	int			 GetWidth() const { return width; };
+	int			 GetHeight() const { return height; };
+	vk::Extent2D GetExtent() const { return vk::Extent2D(width, height); };
 
 	glm::vec2 GetMousePos() const
 	{
@@ -49,9 +61,13 @@ class Window
 		return glm::vec2(static_cast<float>(x), static_cast<float>(y));
 	};
 
-	void PollEvents() const;
-	void SwapBuffers() const { glfwSwapBuffers(window); };
-	bool ShouldClose() const { return glfwWindowShouldClose(window); };
+	void	 PollEvents() const;
+	void	 SwapBuffers() const { glfwSwapBuffers(window); };
+	bool	 ShouldClose() const { return glfwWindowShouldClose(window); };
+	bool	 WasResized() const { return framebuffer_resized; };
+	void	 ResetResizeFlag() { framebuffer_resized = false; };
+	void	 ClearSurface() { surface.reset(); }
+	void					 SetSurface(std::shared_ptr<Surface> new_surface) { surface = new_surface; }
 	std::shared_ptr<Surface> GetSurface() const { return surface; };
 
   private:
@@ -59,11 +75,12 @@ class Window
 	int			height;
 	std::string title;
 
-	GLFWwindow* window;
-	std::shared_ptr<Surface>	surface;
+	GLFWwindow*				 window;
+	std::shared_ptr<Surface> surface;
 
 	std::unique_ptr<Event::EventHandler> event_handler;
 
+	static void WindowResizeCallbackStatic(GLFWwindow* window, int width, int height);
 	static void KeyCallbackStatic(GLFWwindow* window, int key, int scancode, int action, int mods);
 	static void MouseButtonCallbackStatic(GLFWwindow* window, int button, int action, int mods);
 	static void MouseMoveCallbackStatic(GLFWwindow* window, double x, double y);
@@ -71,5 +88,6 @@ class Window
 	void Init();
 	friend class Surface;
 	friend class Scene;
+	bool framebuffer_resized = false;
 };
 }	 // namespace nft::vulkan

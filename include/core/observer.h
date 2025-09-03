@@ -2,9 +2,7 @@
 
 #include "core/error_base.h"
 #include "core/event_base.h"
-#include "core/observer.h"
 #include "core/util.h"
-#include "gui/window.h"
 
 #include <algorithm>
 #include <functional>
@@ -15,7 +13,16 @@
 #include <unordered_set>
 #include <vector>
 
-#include "core/glfw_common.h"
+// Forward declarations to break circular dependencies
+namespace nft::vulkan
+{
+class Window;
+}
+
+namespace nft
+{
+class App;
+}
 
 namespace nft::Event
 {
@@ -26,10 +33,10 @@ class EventHandler
 {
   public:
 	EventHandler() = default;
-	EventHandler(vulkan::Window* window);
+	EventHandler(nft::vulkan::Window* window);
 	~EventHandler() = default;
 
-	static void Init(App* app);
+	static void Init(nft::App* app);
 
 	template<typename Event>
 	void Attach(Observer* observer)
@@ -62,10 +69,10 @@ class EventHandler
 			it->second->Update(event.get());
 	}
 
-	vulkan::Window* GetWindow() { return window; };
+	nft::vulkan::Window* GetWindow() { return window; };
 
   private:
-	vulkan::Window*							  window = nullptr;
+	nft::vulkan::Window*							  window = nullptr;
 	std::multimap<std::type_index, Observer*> event_register;
 };
 
@@ -84,6 +91,25 @@ class Observer
 	}
 
 	EventHandler* event_handler = nullptr;
+};
+
+class WindowResizeHandler: public Observer
+{
+  public:
+	typedef std::function<void(int width, int height)> ResizeCallback;
+	WindowResizeHandler(EventHandler* handler): Observer(handler) { Subscribe<WindowResizeEvent>(); }
+	~WindowResizeHandler() override = default;
+	void Update(IEvent* source) override
+	{
+		if (auto event = dynamic_cast<WindowResizeEvent*>(source))
+		{
+			if (resize_callback)
+				resize_callback(event->width, event->height);
+		}
+	}
+	void SetResizeCallback(ResizeCallback callback) { resize_callback = callback; }
+  private:
+	ResizeCallback resize_callback = nullptr;
 };
 
 class KeyHandler: public Observer
@@ -164,9 +190,9 @@ class MouseHandler: public Observer
 
 	void EnableRawMouseMotion();
 	void DisableRawMouseMotion();
-	void SetCursorDisabled() { glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED); }
-	void SetCursorHidden() { glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN); }
-	void SetCursorNormal() { glfwSetInputMode(event_handler->GetWindow()->GetGLFWWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL); }
+	void SetCursorDisabled();
+	void SetCursorHidden();
+	void SetCursorNormal();
 
 	void SetButtonHandlerCallback(MouseButtonCallback callback) { button_handler_callback = callback; }
 

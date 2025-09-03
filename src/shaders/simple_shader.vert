@@ -1,42 +1,51 @@
 #version 450
-#extension GL_KHR_vulkan_glsl : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 
-layout (set = 0, binding = 0) uniform UniformBaseObject {
-	mat4 view;
-	mat4 proj;
-	vec3 pos;
-} CameraData;
+// Traditional vertex input attributes
+layout (location = 0) in vec4 in_position;     // position from vertex buffer
+layout (location = 1) in vec2 in_tex_coord;    // UV coordinates from vertex buffer  
+layout (location = 2) in vec3 in_normal;       // normal from vertex buffer
+layout (location = 3) in vec4 in_color;        // color from vertex buffer
 
-layout (std140, set = 0, binding = 1) readonly buffer StorageBuffer {
-	mat4 transforms[];
-} ObjectData;
-
-layout (location = 0) in vec3 vertex_position;
-layout (location = 1) in vec4 vertex_color;
-layout (location = 2) in vec2 vertex_texture_coord;
-layout (location = 3) in vec3 vertex_normal;
-
+// Output to fragment shader
 layout (location = 0) out vec4 frag_color;
-layout (location = 1) out vec2 frag_texture_coord;
-layout (location = 2) out vec3 frag_world_pos;
-layout (location = 3) out vec3 frag_normal;
+
+// Simple push constants
+layout (push_constant) uniform PushConstants {
+    uint frame_index;
+    uint material_index;
+    uint transform_index;
+    uint vertex_offset;
+} pc;
+
+// Camera data from bindless system
+layout (std140, set = 0, binding = 0) readonly buffer CameraBuffer {
+    mat4 view;
+    mat4 proj;
+    vec3 pos;
+} camera_data[];
+
+// Transform data from bindless system
+layout (std140, set = 0, binding = 1) readonly buffer TransformBuffer {
+    mat4 transforms[];
+} transform_data;
 
 void main() {
-	vec3 debug_colors[4] = vec3[4](
-		vec3(1.0, 0.0, 0.0),  // Red for instance 0
-		vec3(0.0, 1.0, 0.0),  // Green for instance 1  
-		vec3(0.0, 0.0, 1.0),  // Blue for instance 2
-		vec3(1.0, 1.0, 0.0)   // Yellow for instance 3
-	);
-
-	mat4 model_matrix = ObjectData.transforms[gl_InstanceIndex];
-	vec4 world_pos = model_matrix * vec4(vertex_position, 1.0);
-	gl_Position = CameraData.proj * CameraData.view * world_pos;
-
-	frag_color = vertex_color;
-	frag_texture_coord = vertex_texture_coord;
-	frag_world_pos = world_pos.xyz;
-	
-	// For now, assume normal is just up vector (you can enhance this later)
-	frag_normal = vertex_normal;
+    // Use the input vertex data directly
+    vec4 world_pos = in_position;
+    
+    // Apply transform if available
+    if (pc.transform_index < 1000) {
+        world_pos = transform_data.transforms[pc.transform_index] * in_position;
+    }
+    
+    // Apply camera transformation
+    if (pc.frame_index < 3) {
+        gl_Position = camera_data[pc.frame_index].proj * camera_data[pc.frame_index].view * world_pos;
+    } else {
+        gl_Position = world_pos;
+    }
+    
+    // Pass vertex color to fragment shader
+    frag_color = in_color;
 }

@@ -53,6 +53,11 @@ class Image
 	const vk::Sampler& GetSampler() const { return vk_sampler; }
 	const vk::Image& GetVkImage() const { return vk_image; }
 
+	// Methods to safely handle cleanup for swapchain images
+	void ClearImageHandle() { vk_image = VK_NULL_HANDLE; }
+	void ClearImageViewHandle() { vk_image_view = VK_NULL_HANDLE; }
+	void ClearMemoryHandle() { vk_memory = VK_NULL_HANDLE; }
+
   protected:
 	Device* device = nullptr;
 

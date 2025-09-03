@@ -11,13 +11,12 @@
 
 namespace nft::parse
 {
+using Mesh	   = graphics::TriMesh;
+using Material = graphics::Material;
 
-class ObjScene
+class MeshScene
 {
   public:
-	using Mesh = graphics::TriMesh;
-	using Material = graphics::Material;
-
 	class Node
 	{
 	  public:
@@ -26,48 +25,68 @@ class ObjScene
 
 	  private:
 		std::vector<uint32_t> mesh_indices;
+		std::string			  name;
 		std::vector<Node>	  children;
 
-		friend class ObjScene;
+		friend class MeshScene;
+		friend class ObjLoader;
 	};
 
-	std::vector<Mesh>	  GetMeshes() const { return meshes; }
-	std::vector<Material> GetMaterials() const { return materials; }
+	std::vector<std::shared_ptr<Mesh>>	   GetMeshes() const { return meshes; }
+	std::vector<std::shared_ptr<Material>> GetMaterials() const { return materials; }
+	Node								   GetRootNode() const { return root_node; }
+
+	// Factory method to create an MeshScene from an OBJ file
+	static std::unique_ptr<MeshScene> LoadFromFile(const std::string& file_dir, const std::string& file_name);
 
   private:
-	Node				  root_node;
-	std::vector<Mesh>	  meshes;
-	std::vector<Material> materials;
+	Node								   root_node;
+	std::vector<std::shared_ptr<Mesh>>	   meshes;
+	std::vector<std::shared_ptr<Material>> materials;
+
+	friend class ObjLoader;
 };
 
 class ObjLoader
 {
   public:
-	ObjLoader(const std::string& file_dir, const std::string& file_name);
+	ObjLoader() = default;
 	~ObjLoader() = default;
 
-	std::unique_ptr<std::vector<float>>	   GetVertices();
-	std::unique_ptr<std::vector<uint32_t>> GetIndices();
+	// New methods for working with MeshScene
+	// std::unique_ptr<MeshScene> CreateMeshScene();
+	std::unique_ptr<MeshScene> ParseObjFile(const std::string& file_dir, const std::string& file_name);
 
   private:
-	std::unique_ptr<std::vector<float>>	   vertices;
-	std::unique_ptr<std::vector<uint32_t>> indices;
-	std::vector<glm::vec3>				   v;
-	std::vector<glm::vec3>				   vn;
-	std::vector<glm::vec2>				   vt;
-	glm::mat4							   pre_transform = glm::mat4(1.0f);	   // Pre-transform matrix
+	std::unique_ptr<MeshScene> obj_scene;
+	std::vector<glm::vec4>	  v;
+	std::vector<glm::vec2>	  vt;
+	std::vector<glm::vec3>	  vn;
 
-	std::unordered_map<std::string, uint32_t>  index_history;
-	std::unordered_map<std::string, glm::vec3> colors;
-	glm::vec3								   brush_color = { 1.0f, 1.0f, 1.0f };	  // Default white color
+	std::unordered_map<std::string, uint32_t> index_history;
+	std::shared_ptr<Mesh>					  current_mesh;
+	uint32_t								  current_mesh_index = 0;
+	MeshScene::Node*							  current_node;
+	uint32_t								  current_material_index = 0;
+	std::string								  current_material_name;
+	std::unordered_map<std::string, uint32_t> material_name_to_index;	 // Map material names to indices
+	std::vector<glm::vec3>					  colors;
+	glm::vec3								  brush_color = { 1.0f, 1.0f, 1.0f };	 // Default white color
 
-	void ParseObjFile(const std::string& file_dir, const std::string& file_name);
+	// Material data for MeshScene creation
+
 	void ParseMtlFile(const std::string& file_dir, const std::string& file_name);
 
-	void ReadVertexData(const std::vector<std::string>& words);
-	void ReadTextureCoordData(const std::vector<std::string>& words);
-	void ReadNormalData(const std::vector<std::string>& words);
-	void ReadFaceData(const std::vector<std::string>& words);
-	void ReadCorner(const std::string& vertex_description);
+	void	 ReadVertexData(const std::vector<std::string>& words);
+	void	 ReadTextureCoordData(const std::vector<std::string>& words);
+	void	 ReadNormalData(const std::vector<std::string>& words);
+	void	 ReadFaceData(const std::vector<std::string>& words);
+	uint32_t ReadCorner(const std::string& vertex_description);
+
+	// New material parsing methods
+	void ParseMaterialLibrary(const std::string& file_name);
+	void ParseUseMaterial(const std::string& material_name);
+
+	friend class MeshScene;
 };
 }	 // namespace nft::parse
