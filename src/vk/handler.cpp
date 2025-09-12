@@ -105,8 +105,21 @@ std::shared_ptr<Surface> VulkanHandler::AddSurface(Window* window)
 
 void VulkanHandler::ShutDown()
 {
-	if (device)
-		device->GetDevice().waitIdle();	   // Ensure all operations are complete before cleanup
+	// CRITICAL FIX: Use try-catch to handle potential device lost errors during cleanup
+	try {
+		if (device)
+			device->GetDevice().waitIdle();   // Ensure all operations are complete before cleanup
+		
+		if (app && app->GetLogger())
+			app->GetLogger()->Debug("Device idle wait completed successfully", "VKShutdown");
+	}
+	catch (const vk::SystemError& e) {
+		// Device lost errors are expected during shutdown in some cases
+		if (app && app->GetLogger()) {
+			app->GetLogger()->Warn(std::format("Failed to safely cleanup renderer resources: {}", e.what()), "VKShutdown");
+		}
+		// Continue with cleanup anyway - we need to release resources even if device is lost
+	}
 
 	if (app && app->GetLogger())
 		app->GetLogger()->Debug("Cleaning Up Vulkan Resources...", "VKShutdown");

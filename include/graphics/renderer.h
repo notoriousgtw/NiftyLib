@@ -15,24 +15,27 @@ class Renderer
 	Renderer()	= default;
 	~Renderer() 
 	{
-		// Clean up allocated resources
-		auto* global_manager = vulkan::VulkanHandler::GetGlobalResourceManager();
-		if (global_manager)
-		{
-			if (vertex_handle.IsValid())
-				global_manager->FreeVertexData(vertex_handle);
-			if (index_handle.IsValid())
-				global_manager->FreeIndexData(index_handle);
-			if (transform_handle.IsValid())
-				global_manager->FreeObjectTransforms(transform_handle);
-			if (material_handle.IsValid())
-				global_manager->FreeMaterials(material_handle);
-		}
+		// CRITICAL FIX: Don't free GPU resources in destructor during normal operation
+		// Resources should be freed explicitly when we know the GPU is idle
 		
-		// Ensure all GPU work is complete before destroying pipelines
+		// Only ensure GPU work is complete before destroying pipelines
 		if (surface && surface->GetDevice())
-			surface->GetDevice()->GetDevice().waitIdle();
+		{
+			try {
+				surface->GetDevice()->GetDevice().waitIdle();
+			} catch (const std::exception& e) {
+				// If device is lost, we can't wait - just continue with cleanup
+				auto* app = vulkan::VulkanHandler::GetApp();
+				if (app && app->GetLogger()) {
+					app->GetLogger()->Warn(std::format("Device idle wait failed in renderer destructor: {}", e.what()), "VKRender");
+				}
+			}
+		}
 		// managed_pipelines will be destroyed automatically after this point
+		
+		// NOTE: Resource handles are NOT freed here to prevent device loss
+		// They will be cleaned up when the GlobalBindlessManager is destroyed
+		// or when explicitly freed during safe shutdown
 	}
 
 	void Init(Scene* scene, std::shared_ptr<vulkan::Surface> surface)
@@ -79,6 +82,38 @@ class Renderer
 	vulkan::GlobalBindlessManager* GetResourceManager() 
 	{ 
 		return vulkan::VulkanHandler::GetGlobalResourceManager(); 
+	}
+
+	// SAFE CLEANUP: Only call this when you know the GPU is idle and device is valid
+	void SafeCleanupResources()
+	{
+		auto* global_manager = vulkan::VulkanHandler::GetGlobalResourceManager();
+		if (global_manager)
+		{
+			auto* app = vulkan::VulkanHandler::GetApp();
+			auto* logger = app ? app->GetLogger() : nullptr;
+			
+			if (vertex_handle.IsValid()) {
+				global_manager->FreeVertexData(vertex_handle);
+				vertex_handle = vulkan::ResourceHandle::INVALID;
+				if (logger) logger->Debug("Safely freed vertex data", "VKRender");
+			}
+			if (index_handle.IsValid()) {
+				global_manager->FreeIndexData(index_handle);
+				index_handle = vulkan::ResourceHandle::INVALID;
+				if (logger) logger->Debug("Safely freed index data", "VKRender");
+			}
+			if (transform_handle.IsValid()) {
+				global_manager->FreeObjectTransforms(transform_handle);
+				transform_handle = vulkan::ResourceHandle::INVALID;
+				if (logger) logger->Debug("Safely freed transform data", "VKRender");
+			}
+			if (material_handle.IsValid()) {
+				global_manager->FreeMaterials(material_handle);
+				material_handle = vulkan::ResourceHandle::INVALID;
+				if (logger) logger->Debug("Safely freed material data", "VKRender");
+			}
+		}
 	}
 
 	void DrawFrame();

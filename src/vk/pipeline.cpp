@@ -718,6 +718,9 @@ void SwapchainRenderPipeline::RecordDrawCommands(vk::CommandBuffer command_buffe
 void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer command_buffer, uint32_t image_index, 
 															const std::vector<EntityRenderData>& entities)
 {
+	auto* app = vulkan::VulkanHandler::GetApp();
+	auto* logger = app ? app->GetLogger() : nullptr;
+	
 	// Bind the graphics pipeline
 	command_buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, vk_pipeline);
 	
@@ -725,14 +728,14 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 	auto* global_manager = vulkan::VulkanHandler::GetGlobalResourceManager();
 	if (!global_manager)
 	{
-		printf("DEBUG: No global manager available - skipping draw\n");
+		if (logger) logger->Debug("No global manager available - skipping draw", "VKRender");
 		return;
 	}
 	
 	vk::DescriptorSet bindless_descriptor_set = global_manager->GetBindlessDescriptorSet();
 	if (bindless_descriptor_set == VK_NULL_HANDLE)
 	{
-		printf("DEBUG: No bindless descriptor set available - skipping draw\n");
+		if (logger) logger->Debug("No bindless descriptor set available - skipping draw", "VKRender");
 		return;
 	}
 	
@@ -740,7 +743,7 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 	auto* global_layout = vulkan::VulkanHandler::GetBindlessDescriptorLayout();
 	if (!global_layout || global_layout->vk_descriptor_set_layout == VK_NULL_HANDLE)
 	{
-		printf("DEBUG: Global descriptor layout not available - skipping draw\n");
+		if (logger) logger->Debug("Global descriptor layout not available - skipping draw", "VKRender");
 		return;
 	}
 	
@@ -756,11 +759,11 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 			0, // dynamic offset count
 			nullptr // dynamic offsets
 		);
-		printf("DEBUG: Successfully bound descriptor sets\n");
+		if (logger) logger->Debug("Successfully bound descriptor sets", "VKRender");
 	}
 	catch (const vk::SystemError& e)
 	{
-		printf("DEBUG: Failed to bind descriptor sets: %s\n", e.what());
+		if (logger) logger->Error(std::format("Failed to bind descriptor sets: {}", e.what()), "VKRender");
 		return;
 	}
 	
@@ -774,17 +777,17 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 		{
 			vk::DeviceSize vertex_offset = 0;
 			command_buffer.bindVertexBuffers(0, 1, &vertex_buffer, &vertex_offset);
-			printf("DEBUG: Successfully bound vertex buffer\n");
+			if (logger) logger->Debug("Successfully bound vertex buffer", "VKRender");
 		}
 		catch (const vk::SystemError& e)
 		{
-			printf("DEBUG: Failed to bind vertex buffer: %s\n", e.what());
+			if (logger) logger->Error(std::format("Failed to bind vertex buffer: {}", e.what()), "VKRender");
 			return;
 		}
 	}
 	else
 	{
-		printf("DEBUG: No vertex buffer available\n");
+		if (logger) logger->Debug("No vertex buffer available", "VKRender");
 	}
 	
 	if (index_buffer != VK_NULL_HANDLE)
@@ -792,23 +795,23 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 		try
 		{
 			command_buffer.bindIndexBuffer(index_buffer, 0, vk::IndexType::eUint32);
-			printf("DEBUG: Successfully bound index buffer\n");
+			if (logger) logger->Debug("Successfully bound index buffer", "VKRender");
 		}
 		catch (const vk::SystemError& e)
 		{
-			printf("DEBUG: Failed to bind index buffer: %s\n", e.what());
+			if (logger) logger->Error(std::format("Failed to bind index buffer: {}", e.what()), "VKRender");
 			return;
 		}
 	}
 	else
 	{
-		printf("DEBUG: No index buffer available\n");
+		if (logger) logger->Debug("No index buffer available", "VKRender");
 	}
 	
 	// If no entities provided, draw a fallback triangle for testing
 	if (entities.empty())
 	{
-		printf("DEBUG: No entities provided - drawing fallback triangle\n");
+		if (logger) logger->Debug("No entities provided - drawing fallback triangle", "VKRender");
 		
 		struct PushConstants {
 			uint32_t frame_index;
@@ -836,30 +839,30 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 			if (index_buffer != VK_NULL_HANDLE)
 			{
 				command_buffer.drawIndexed(3, 1, 0, 0, 0); // 3 indices, 1 instance
-				printf("DEBUG: Drew fallback triangle (indexed)\n");
+				if (logger) logger->Debug("Drew fallback triangle (indexed)", "VKRender");
 			}
 			else if (vertex_buffer != VK_NULL_HANDLE)
 			{
 				command_buffer.draw(3, 1, 0, 0); // 3 vertices, 1 instance
-				printf("DEBUG: Drew fallback triangle (non-indexed)\n");
+				if (logger) logger->Debug("Drew fallback triangle (non-indexed)", "VKRender");
 			}
 			else
 			{
 				// No buffers - use built-in triangle generation in vertex shader
 				command_buffer.draw(3, 1, 0, 0);
-				printf("DEBUG: Drew built-in triangle\n");
+				if (logger) logger->Debug("Drew built-in triangle", "VKRender");
 			}
 		}
 		catch (const vk::SystemError& e)
 		{
-			printf("DEBUG: Failed to draw fallback triangle: %s\n", e.what());
+			if (logger) logger->Error(std::format("Failed to draw fallback triangle: {}", e.what()), "VKRender");
 		}
 		
 		return;
 	}
 	
 	// PHASE 2: Actual entity drawing
-	printf("DEBUG: PHASE 2 - Drawing %zu entities\n", entities.size());
+	if (logger) logger->Debug(std::format("Drawing {} entities", entities.size()), "VKRender");
 	
 	uint32_t entities_drawn = 0;
 	for (size_t i = 0; i < entities.size(); ++i)
@@ -869,8 +872,8 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 		// Validate entity data
 		if (entity.vertex_count == 0 || entity.index_count == 0)
 		{
-			printf("DEBUG: Entity %zu - Invalid vertex/index count (v=%u, i=%u), skipping\n", 
-				i, entity.vertex_count, entity.index_count);
+			if (logger) logger->Warn(std::format("Entity {} - Invalid vertex/index count (v={}, i={}), skipping", 
+				i, entity.vertex_count, entity.index_count), "VKRender");
 			continue;
 		}
 		
@@ -889,9 +892,11 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 		push_constants.transform_index = entity.transform_index;
 		push_constants.vertex_offset = entity.vertex_offset;
 		
-		printf("DEBUG: Entity %zu push constants: frame_idx=%u->%u, material=%u, transform=%u, vertex_offset=%u\n",
-			i, image_index, push_constants.frame_index, push_constants.material_index, 
-			push_constants.transform_index, push_constants.vertex_offset);
+		if (logger && i == 0) { // Only log first entity to reduce spam
+			logger->Debug(std::format("Entity {} push constants: frame_idx={}=>{}, material={}, transform={}, vertex_offset={}",
+				i, image_index, push_constants.frame_index, push_constants.material_index, 
+				push_constants.transform_index, push_constants.vertex_offset), "VKRender");
+		}
 		
 		try
 		{
@@ -917,8 +922,10 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 					0                      // firstInstance
 				);
 				
-				printf("DEBUG: Entity %zu - Drew indexed: indices=%u (offset %u), vertices=%u (offset %u)\n",
-					i, entity.index_count, entity.index_offset, entity.vertex_count, entity.vertex_offset);
+				if (logger && i == 0) { // Only log first entity
+					logger->Debug(std::format("Entity {} - Drew indexed: indices={} (offset {}), vertices={} (offset {})",
+						i, entity.index_count, entity.index_offset, entity.vertex_count, entity.vertex_offset), "VKRender");
+				}
 			}
 			else if (vertex_buffer != VK_NULL_HANDLE)
 			{
@@ -930,12 +937,14 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 					0                      // firstInstance
 				);
 				
-				printf("DEBUG: Entity %zu - Drew non-indexed: vertices=%u (offset %u)\n",
-					i, entity.vertex_count, entity.vertex_offset);
+				if (logger && i == 0) { // Only log first entity
+					logger->Debug(std::format("Entity {} - Drew non-indexed: vertices={} (offset {})",
+						i, entity.vertex_count, entity.vertex_offset), "VKRender");
+				}
 			}
 			else
 			{
-				printf("DEBUG: Entity %zu - No buffers available, skipping\n", i);
+				if (logger) logger->Debug(std::format("Entity {} - No buffers available, skipping", i), "VKRender");
 				continue;
 			}
 			
@@ -943,12 +952,12 @@ void SwapchainRenderPipeline::RecordDrawCommandsWithEntities(vk::CommandBuffer c
 		}
 		catch (const vk::SystemError& e)
 		{
-			printf("DEBUG: Entity %zu - Draw failed: %s\n", i, e.what());
+			if (logger) logger->Error(std::format("Entity {} - Draw failed: {}", i, e.what()), "VKRender");
 			// Continue trying to draw other entities
 		}
 	}
 	
-	printf("DEBUG: Successfully drew %u out of %zu entities\n", entities_drawn, entities.size());
+	if (logger) logger->Debug(std::format("Successfully drew {} out of {} entities", entities_drawn, entities.size()), "VKRender");
 }
 
 

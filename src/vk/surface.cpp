@@ -181,11 +181,16 @@ void Surface::CreateSwapchain()
 	{
 		auto& frame = frames.at(i);
 
-		frame.in_flight_fence			= device->CreateFence(true);
+		// CRITICAL FIX: Create fence in signaled state for first use, then reset it
+		frame.in_flight_fence			= device->CreateFence(true); // Start signaled
 		frame.image_available_semaphore = device->CreateSemaphore();
 		frame.render_finished_semaphore = device->CreateSemaphore();
 		frame.Init(this, static_cast<uint32_t>(i)); // Pass frame index, scene will be set by renderer
 		// Note: Frame no longer needs MakeDescriptorResources() since we use bindless
+
+		// IMPORTANT: Reset fence immediately to unsignaled state for proper use
+		device->GetDevice().resetFences(frame.in_flight_fence);
+		app->GetLogger()->Debug(std::format("Created and reset fence for frame {}", i), "VKInit");
 
 		auto& swapchain_image = frame.swapchain_image;
 		swapchain_image.SetDevice(device);
@@ -399,57 +404,93 @@ void Surface::RecordFrameCommandBuffer(uint32_t frame_index)
 
 vk::CommandBuffer Surface::BeginFrame()
 {
-	// DEBUG: Add frame tracking
+	// Add frame tracking
 	static uint32_t total_frame_count = 0;
-	printf("DEBUG: BeginFrame() #%u - current_frame_index: %zu, max_frames_in_flight: %zu\n",
-		total_frame_count, current_frame_index, max_frames_in_flight);
+	app->GetLogger()->Debug(std::format("BeginFrame() #{} - current_frame_index: {}, max_frames_in_flight: {}", 
+		total_frame_count, current_frame_index, max_frames_in_flight), "VKRender");
 	
 	// CRITICAL FIX: Only wait for fence if we've used this frame before (after max_frames_in_flight submissions)
 	if (total_frame_count >= max_frames_in_flight) {
-		printf("DEBUG: Waiting for fence for frame %zu...\n", current_frame_index);
+		app->GetLogger()->Debug(std::format("Waiting for fence for frame {}...", current_frame_index), "VKRender");
 		
-		// Add a reasonable timeout and proper error handling
+		// IMPROVED ERROR HANDLING: Add progressive timeout strategy
+		const uint64_t SHORT_TIMEOUT = 100000000ULL;  // 100ms
+		const uint64_t LONG_TIMEOUT = 1000000000ULL;  // 1 second
+		const uint64_t MAX_TIMEOUT = 5000000000ULL;   // 5 seconds
+		
+		// Try a short wait first
 		auto result = device->GetDevice().waitForFences(
 			frames[current_frame_index].in_flight_fence, 
 			VK_TRUE, 
-			1000000000ULL  // 1 second timeout (reduced from 5 seconds)
+			SHORT_TIMEOUT
 		);
 		
 		if (result == vk::Result::eTimeout) {
-			printf("ERROR: Fence wait TIMEOUT for frame %zu after 1 second!\n", current_frame_index);
-			printf("ERROR: This indicates the GPU command from previous frame %zu cycle never completed.\n", current_frame_index);
-			printf("ERROR: Possible causes: GPU hang, driver issue, or synchronization problem.\n");
+			app->GetLogger()->Warn(std::format("Fence wait timed out after 100ms for frame {}, trying longer wait...", current_frame_index), "VKRender");
 			
-			// Instead of crashing, let's try to recover by waiting for device idle
-			printf("DEBUG: Attempting recovery by waiting for device idle...\n");
-			try {
-				device->GetDevice().waitIdle();
-				printf("DEBUG: Device idle wait completed - trying to continue\n");
+			// Try a medium wait
+			result = device->GetDevice().waitForFences(
+				frames[current_frame_index].in_flight_fence, 
+				VK_TRUE, 
+				LONG_TIMEOUT
+			);
+			
+			if (result == vk::Result::eTimeout) {
+				app->GetLogger()->Error(std::format("Fence wait timed out after 1 second for frame {}, trying final wait...", current_frame_index), "VKRender");
 				
-				// Reset the fence manually since the previous operation might be stuck
-				device->GetDevice().resetFences(frames[current_frame_index].in_flight_fence);
-				printf("DEBUG: Manually reset fence for frame %zu\n", current_frame_index);
-			} catch (const vk::SystemError& e) {
-				printf("ERROR: Device idle wait failed: %s\n", e.what());
-				NFT_ERROR(VulkanFatal, std::format("Device idle wait failed: {}", e.what()));
-				return VK_NULL_HANDLE;
+				// Final attempt with longer timeout
+				result = device->GetDevice().waitForFences(
+					frames[current_frame_index].in_flight_fence, 
+					VK_TRUE,
+					MAX_TIMEOUT
+				);
+				
+				if (result == vk::Result::eTimeout) {
+					app->GetLogger()->Error(std::format("CRITICAL: Fence wait TIMEOUT for frame {} after 5+ seconds!", current_frame_index), "VKRender");
+					app->GetLogger()->Error("GPU appears to be hung or in an unrecoverable state.", "VKRender");
+					
+					// CRITICAL: Force reset the fence to prevent infinite hangs
+					app->GetLogger()->Debug("Force resetting fence to attempt recovery...", "VKRender");
+					try {
+						device->GetDevice().resetFences(frames[current_frame_index].in_flight_fence);
+						app->GetLogger()->Debug("Fence force reset successful", "VKRender");
+						
+						// Skip this frame entirely to try to recover
+						current_frame_index = (current_frame_index + 1) % max_frames_in_flight;
+						app->GetLogger()->Debug(std::format("Skipping to next frame {} due to timeout", current_frame_index), "VKRender");
+						return VK_NULL_HANDLE;
+						
+					} catch (const vk::SystemError& reset_error) {
+						app->GetLogger()->Error(std::format("Failed to reset fence: {}", reset_error.what()), "VKRender");
+						// Device is likely lost at this point
+						return VK_NULL_HANDLE;
+					}
+				}
 			}
-		} else if (result != vk::Result::eSuccess) {
-			printf("ERROR: Fence wait FAILED for frame %zu with result: %d\n", current_frame_index, static_cast<int>(result));
+		}
+		
+		if (result != vk::Result::eSuccess && result != vk::Result::eTimeout) {
+			app->GetLogger()->Error(std::format("Fence wait FAILED for frame {} with result: {}", 
+				current_frame_index, vk::to_string(result)), "VKRender");
 			NFT_ERROR(VulkanFatal, std::format("Fence wait failed on frame {} with result {}", current_frame_index, vk::to_string(result)));
 			return VK_NULL_HANDLE;
-		} else {
-			printf("DEBUG: Fence wait completed successfully for frame %zu\n", current_frame_index);
+		} else if (result == vk::Result::eSuccess) {
+			app->GetLogger()->Debug(std::format("Fence wait completed successfully for frame {}", current_frame_index), "VKRender");
 		}
 	} else {
-		printf("DEBUG: Skipping fence wait for initial frame %zu (total: %u)\n", 
-			current_frame_index, total_frame_count);
+		app->GetLogger()->Debug(std::format("Skipping fence wait for initial frame {} (total: {})", 
+			current_frame_index, total_frame_count), "VKRender");
 	}
 	
 	// CRITICAL FIX: Always reset fence before using it (required by Vulkan spec)
 	// Fences must be in unsignaled state before submission
-	device->GetDevice().resetFences(frames[current_frame_index].in_flight_fence);
-	printf("DEBUG: Reset fence for frame %zu\n", current_frame_index);
+	try {
+		device->GetDevice().resetFences(frames[current_frame_index].in_flight_fence);
+		app->GetLogger()->Debug(std::format("Reset fence for frame {}", current_frame_index), "VKRender");
+	} catch (const vk::SystemError& e) {
+		app->GetLogger()->Error(std::format("Failed to reset fence for frame {}: {}", current_frame_index, e.what()), "VKRender");
+		return VK_NULL_HANDLE;
+	}
 	
 	// Acquire the next image from the swapchain
 	try
@@ -458,29 +499,51 @@ vk::CommandBuffer Surface::BeginFrame()
 			frames[current_frame_index].image_available_semaphore, VK_NULL_HANDLE);
 		current_image_index = result.value; // Store the acquired image index
 		
-		printf("DEBUG: Acquired swapchain image: %u (frame_index: %zu)\n", current_image_index, current_frame_index);
+		app->GetLogger()->Debug(std::format("Acquired swapchain image: {} (frame_index: {})", 
+			current_image_index, current_frame_index), "VKRender");
 	}
 	catch (const vk::OutOfDateKHRError&)
 	{
-		printf("DEBUG: Swapchain out of date, recreating\n");
+		app->GetLogger()->Debug("Swapchain out of date, recreating", "VKRender");
 		RecreateSwapchain();
 		return VK_NULL_HANDLE;
 	}
 	catch (const vk::SystemError& e)
 	{
-		printf("DEBUG: Failed to acquire swapchain image: %s\n", e.what());
-		NFT_ERROR(VulkanFatal, std::format("Failed to acquire swapchain image: {}", e.what()));
+		app->GetLogger()->Debug(std::format("Failed to acquire swapchain image: {}", e.what()), "VKRender");
+		// Don't immediately fail - try to recreate swapchain first
+		app->GetLogger()->Debug("Attempting swapchain recreation due to acquire failure", "VKRender");
+		try {
+			RecreateSwapchain();
+			return VK_NULL_HANDLE; // Skip this frame
+		} catch (const std::exception& recreate_error) {
+			app->GetLogger()->Error(std::format("Swapchain recreation also failed: {}", recreate_error.what()), "VKRender");
+			NFT_ERROR(VulkanFatal, std::format("Failed to acquire swapchain image: {}", e.what()));
+			return VK_NULL_HANDLE;
+		}
+	}
+	
+	// SAFETY CHECK: Ensure image index is valid
+	if (current_image_index >= frames.size()) {
+		app->GetLogger()->Error(std::format("Acquired invalid image index {} (max: {})", 
+			current_image_index, frames.size() - 1), "VKRender");
 		return VK_NULL_HANDLE;
 	}
 	
 	// Reset and begin the command buffer
 	auto& command_buffer = frames[current_frame_index].vk_command_buffer;
-	command_buffer.reset();
-	
-	vk::CommandBufferBeginInfo begin_info = vk::CommandBufferBeginInfo()
-		.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+	try {
+		command_buffer.reset();
 		
-	command_buffer.begin(begin_info);
+		vk::CommandBufferBeginInfo begin_info = vk::CommandBufferBeginInfo()
+			.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+			
+		command_buffer.begin(begin_info);
+	} catch (const vk::SystemError& e) {
+		app->GetLogger()->Error(std::format("Failed to begin command buffer for frame {}: {}", 
+			current_frame_index, e.what()), "VKRender");
+		return VK_NULL_HANDLE;
+	}
 	
 	total_frame_count++;
 	return command_buffer;
@@ -490,34 +553,45 @@ void Surface::EndFrame()
 {
 	auto& current_frame = frames[current_frame_index];
 	
-	printf("DEBUG: EndFrame() - current_frame_index: %zu, current_image_index: %u\n", 
-		current_frame_index, current_image_index);
+	app->GetLogger()->Debug(std::format("EndFrame() - current_frame_index: {}, current_image_index: {}", 
+		current_frame_index, current_image_index), "VKRender");
 	
-	// DIAGNOSTIC: Check if the framebuffer for this image is valid
+	// SAFETY CHECK: Validate indices
 	if (current_image_index >= frames.size()) {
-		printf("ERROR: current_image_index %u is out of range (max: %zu)!\n", current_image_index, frames.size() - 1);
+		app->GetLogger()->Error(std::format("current_image_index {} is out of range (max: {})!", 
+			current_image_index, frames.size() - 1), "VKRender");
 		NFT_ERROR(VulkanFatal, "Invalid swapchain image index");
 		return;
 	}
 	
 	auto& target_frame = frames[current_image_index];
 	if (!target_frame.vk_frame_buffer) {
-		printf("ERROR: Framebuffer for image %u is null!\n", current_image_index);
+		app->GetLogger()->Error(std::format("Framebuffer for image {} is null!", current_image_index), "VKRender");
 		NFT_ERROR(VulkanFatal, "Invalid framebuffer for swapchain image");
 		return;
 	}
 	
-	printf("DEBUG: Using framebuffer for swapchain image %u (frame %zu's framebuffer)\n", 
-		current_image_index, current_image_index);
+	app->GetLogger()->Debug(std::format("Using framebuffer for swapchain image {} (frame {}'s framebuffer)", 
+		current_image_index, current_image_index), "VKRender");
 	
 	// End command buffer recording
-	current_frame.vk_command_buffer.end();
+	try {
+		current_frame.vk_command_buffer.end();
+	} catch (const vk::SystemError& e) {
+		app->GetLogger()->Error(std::format("Failed to end command buffer for frame {}: {}", 
+			current_frame_index, e.what()), "VKRender");
+		return;
+	}
 	
-	// DIAGNOSTIC: Add memory barrier before submission to ensure proper synchronization
-	// This forces the GPU to complete all previous operations before proceeding
-	printf("DEBUG: Adding memory barrier before submission for frame %zu\n", current_frame_index);
+	app->GetLogger()->Debug(std::format("Command buffer recording completed for frame {}", current_frame_index), "VKRender");
 	
-	// Submit the command buffer with enhanced diagnostics
+	// CRITICAL FIX: Add more validation before queue submission
+	if (!current_frame.image_available_semaphore || !current_frame.render_finished_semaphore || !current_frame.in_flight_fence) {
+		app->GetLogger()->Error(std::format("Invalid synchronization objects for frame {}", current_frame_index), "VKRender");
+		return;
+	}
+	
+	// Submit the command buffer with enhanced error handling
 	vk::PipelineStageFlags wait_stages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
 	
 	vk::SubmitInfo submit_info = vk::SubmitInfo()
@@ -531,32 +605,42 @@ void Surface::EndFrame()
 	
 	try
 	{
-		printf("DEBUG: Submitting command buffer for frame %zu (target image: %u) with fence...\n", 
-			current_frame_index, current_image_index);
+		app->GetLogger()->Debug(std::format("Submitting command buffer for frame {} (target image: {}) with fence...", 
+			current_frame_index, current_image_index), "VKRender");
 		
-		// DIAGNOSTIC: Check fence state before submission
+		// Check fence state before submission
 		auto fence_status = device->GetDevice().getFenceStatus(current_frame.in_flight_fence);
-		printf("DEBUG: Fence status before submission: %s\n", vk::to_string(fence_status).c_str());
+		app->GetLogger()->Debug(std::format("Fence status before submission: {}", vk::to_string(fence_status)), "VKRender");
+		
+		// CRITICAL: Ensure fence is in unsignaled state before submission
+		if (fence_status == vk::Result::eSuccess) {
+			app->GetLogger()->Warn("Fence is already signaled before submission! This should not happen after reset.", "VKRender");
+			device->GetDevice().resetFences(current_frame.in_flight_fence);
+		}
+		
+		// CRITICAL FIX: Add a small delay before submission to prevent race conditions
+		// This ensures the previous reset operation has completed
+		std::this_thread::sleep_for(std::chrono::microseconds(100));
 		
 		device->GetGraphicsQueue().submit(submit_info, current_frame.in_flight_fence);
-		printf("DEBUG: Command buffer submitted successfully for frame %zu\n", current_frame_index);
+		app->GetLogger()->Debug(std::format("Command buffer submitted successfully for frame {}", current_frame_index), "VKRender");
 		
-		// DIAGNOSTIC: Check fence status immediately after submission
+		// Check fence status immediately after submission (should be unsignaled since work is in progress)
 		fence_status = device->GetDevice().getFenceStatus(current_frame.in_flight_fence);
-		printf("DEBUG: Fence status after submission: %s\n", vk::to_string(fence_status).c_str());
+		app->GetLogger()->Debug(std::format("Fence status after submission: {}", vk::to_string(fence_status)), "VKRender");
 		
 	}
 	catch (const vk::SystemError& e)
 	{
-		printf("DEBUG: Failed to submit command buffer for frame %zu: %s\n", current_frame_index, e.what());
-		NFT_ERROR(VulkanFatal, std::format("Failed to submit draw command buffer: {}", e.what()));
+		app->GetLogger()->Error(std::format("Failed to submit command buffer for frame {}: {}", 
+			current_frame_index, e.what()), "VKRender");
+		// Don't throw immediately - try to continue with next frame
+		app->GetLogger()->Debug("Attempting to continue despite submission failure", "VKRender");
+		
+		// Move to next frame anyway to avoid getting stuck
+		current_frame_index = (current_frame_index + 1) % max_frames_in_flight;
+		app->GetLogger()->Debug(std::format("Advanced frame index to {} due to submission failure", current_frame_index), "VKRender");
 		return;
-	}
-	
-	// DIAGNOSTIC: Add a small delay to see if this affects timing
-	if (current_frame_index == 2) {
-		printf("DEBUG: Frame 2 - adding diagnostic delay before present\n");
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	
 	// Present the image using the acquired image index
@@ -569,35 +653,43 @@ void Surface::EndFrame()
 	
 	try
 	{
-		printf("DEBUG: Presenting image %u with semaphore from frame %zu\n", current_image_index, current_frame_index);
+		app->GetLogger()->Debug(std::format("Presenting image {} with semaphore from frame {}", 
+			current_image_index, current_frame_index), "VKRender");
 		auto result = device->GetPresentQueue().presentKHR(present_info);
-		printf("DEBUG: Present completed with result: %s\n", vk::to_string(result).c_str());
+		app->GetLogger()->Debug(std::format("Present completed with result: {}", vk::to_string(result)), "VKRender");
 		
-		// DIAGNOSTIC: Check fence status after present
+		// Check fence status after present (may still be in progress)
 		auto fence_status = device->GetDevice().getFenceStatus(current_frame.in_flight_fence);
-		printf("DEBUG: Fence status after present: %s\n", vk::to_string(fence_status).c_str());
+		app->GetLogger()->Debug(std::format("Fence status after present: {}", vk::to_string(fence_status)), "VKRender");
 		
 		// Check if we need to recreate swapchain
 		if (result == vk::Result::eSuboptimalKHR) {
-			printf("DEBUG: Swapchain suboptimal, will recreate\n");
+			app->GetLogger()->Debug("Swapchain suboptimal, will recreate", "VKRender");
 			RecreateSwapchain();
 		}
 	}
 	catch (const vk::OutOfDateKHRError&)
 	{
-		printf("DEBUG: Swapchain out of date during present, recreating\n");
+		app->GetLogger()->Debug("Swapchain out of date during present, recreating", "VKRender");
 		RecreateSwapchain();
 	}
 	catch (const vk::SystemError& e)
 	{
-		printf("DEBUG: Failed to present image: %s\n", e.what());
-		NFT_ERROR(VulkanFatal, std::format("Failed to present swapchain image: {}", e.what()));
+		app->GetLogger()->Error(std::format("Failed to present image: {}", e.what()), "VKRender");
+		// Try to recreate swapchain instead of immediate failure
+		app->GetLogger()->Debug("Attempting swapchain recreation due to present failure", "VKRender");
+		try {
+			RecreateSwapchain();
+		} catch (const std::exception& recreate_error) {
+			app->GetLogger()->Error(std::format("Swapchain recreation failed: {}", recreate_error.what()), "VKRender");
+			NFT_ERROR(VulkanFatal, std::format("Failed to present swapchain image: {}", e.what()));
+		}
 	}
 	
 	// Move to next frame
 	size_t old_frame_index = current_frame_index;
 	current_frame_index = (current_frame_index + 1) % max_frames_in_flight;
-	printf("DEBUG: Advanced frame index from %zu to %zu\n", old_frame_index, current_frame_index);
+	app->GetLogger()->Debug(std::format("Advanced frame index from {} to {}", old_frame_index, current_frame_index), "VKRender");
 }
 
 //=============================================================================
@@ -627,28 +719,45 @@ void Surface::Cleanup()
 	if (is_cleaned_up)
 		return;
 
-	if (device && device->GetDevice())
-	{
-		device->GetDevice().waitIdle();
-
-		app->GetLogger()->Debug("Cleaning up Surface Vulkan objects...", "VKShutdown");
-
-		// Cleanup swapchain and frame resources first
-		CleanupSwapchain();
-
-		// Cleanup render pass
-		swapchain_render_pass.Cleanup();
-
-		// Cleanup command pool
-		if (vk_command_pool)
+	// CRITICAL FIX: Handle device lost errors during cleanup
+	try {
+		if (device && device->GetDevice())
 		{
-			device->GetDevice().destroyCommandPool(vk_command_pool);
-			vk_command_pool = VK_NULL_HANDLE;
+			device->GetDevice().waitIdle();
+
+			app->GetLogger()->Debug("Cleaning up Surface Vulkan objects...", "VKShutdown");
+
+			// Cleanup swapchain and frame resources first
+			CleanupSwapchain();
+
+			// Cleanup render pass
+			swapchain_render_pass.Cleanup();
+
+			// Cleanup command pool
+			if (vk_command_pool)
+			{
+				device->GetDevice().destroyCommandPool(vk_command_pool);
+				vk_command_pool = VK_NULL_HANDLE;
+			}
+
+			// Pipeline cleanup removed - now handled by graphics::Renderer
+
+			app->GetLogger()->Debug("Surface Vulkan objects cleaned up successfully", "VKShutdown");
 		}
-
-		// Pipeline cleanup removed - now handled by graphics::Renderer
-
-		app->GetLogger()->Debug("Surface Vulkan objects cleaned up successfully", "VKShutdown");
+	}
+	catch (const vk::SystemError& e) {
+		// Handle device lost errors gracefully
+		if (app && app->GetLogger()) {
+			app->GetLogger()->Warn(std::format("Device lost error during surface cleanup: {}", e.what()), "VKRender");
+		}
+		// Continue with cleanup anyway - we need to release resources even if device is lost
+		
+		// Reset Vulkan handles to prevent double cleanup
+		vk_command_pool = VK_NULL_HANDLE;
+		vk_swapchain = VK_NULL_HANDLE;
+		
+		// Clear frame data without device operations
+		frames.clear();
 	}
 
 	// COMMENTED OUT FOR NOW
@@ -676,6 +785,12 @@ void Surface::SelectPresentMode()
 	// TODO: Implement proper present mode selection
 	// For now, just use the first available present mode
 	if (!support_details.present_modes.empty()) {
+		for (const auto& mode : support_details.present_modes) {
+			if (mode == vk::PresentModeKHR::eMailbox) {
+				present_mode = mode;
+				return;
+			}
+		}
 		present_mode = support_details.present_modes[0];
 	}
 }

@@ -30,7 +30,12 @@ void Renderer::DrawFrame()
 	uint32_t current_image_index = surface->GetCurrentImageIndex();
 	vk::Framebuffer current_framebuffer = surface->GetFramebuffer(current_image_index);
 	
-	printf("DEBUG: Using framebuffer for swapchain image %u in render pass\n", current_image_index);
+	auto* app = vulkan::VulkanHandler::GetApp();
+	auto* logger = app ? app->GetLogger() : nullptr;
+	
+	if (logger) {
+		logger->Debug(std::format("Using framebuffer for swapchain image {} in render pass", current_image_index), "VKRender");
+	}
 
 	// Begin render pass with the correct framebuffer
 	vk::RenderPassBeginInfo render_pass_info = vk::RenderPassBeginInfo()
@@ -46,7 +51,9 @@ void Renderer::DrawFrame()
 	render_pass_info.setClearValueCount(clear_values.size()).setPClearValues(clear_values.data());
 
 	command_buffer.beginRenderPass(render_pass_info, vk::SubpassContents::eInline);
-	printf("DEBUG: Started render pass for image %u\n", current_image_index);
+	if (logger) {
+		logger->Debug(std::format("Started render pass for image {}", current_image_index), "VKRender");
+	}
 
 	// Record direct draw commands
 	for (auto& pipeline : managed_pipelines) {
@@ -55,7 +62,9 @@ void Renderer::DrawFrame()
 
 	// End render pass
 	command_buffer.endRenderPass();
-	printf("DEBUG: Ended render pass for image %u\n", current_image_index);
+	if (logger) {
+		logger->Debug(std::format("Ended render pass for image {}", current_image_index), "VKRender");
+	}
 
 	// End frame rendering
 	surface->EndFrame();
@@ -75,7 +84,11 @@ void Renderer::UploadSceneDataToBindlessBuffers()
 	// If no entities to render, skip drawing entirely (no fallback triangle)
 	if (renderable_entities.empty())
 	{
-		printf("DEBUG: No entities found - skipping rendering\n");
+		// Use app's logger through VulkanHandler
+		auto* app = vulkan::VulkanHandler::GetApp();
+		if (app && app->GetLogger()) {
+			app->GetLogger()->Debug("No entities found - skipping rendering", "VKRender");
+		}
 		return;
 	}
 	
@@ -83,7 +96,12 @@ void Renderer::UploadSceneDataToBindlessBuffers()
 	static bool buffers_allocated = false;
 	if (!buffers_allocated && !renderable_entities.empty())
 	{
-		printf("DEBUG: First-time allocation of buffers for %zu entities\n", renderable_entities.size());
+		auto* app = vulkan::VulkanHandler::GetApp();
+		auto* logger = app ? app->GetLogger() : nullptr;
+		
+		if (logger) {
+			logger->Debug(std::format("First-time allocation of buffers for {} entities", renderable_entities.size()), "VKRender");
+		}
 		
 		// Collect all vertex data, index data, transforms, and materials from entities
 		std::vector<graphics::Vertex> all_vertices;
@@ -113,28 +131,30 @@ void Renderer::UploadSceneDataToBindlessBuffers()
 			// Add vertices
 			all_vertices.insert(all_vertices.end(), vertices.begin(), vertices.end());
 			
-			// DEBUG: Print the vertices we're adding
-			printf("DEBUG: Adding %zu vertices for entity %zu:\n", vertices.size(), entity_handles.size());
-			for (size_t v = 0; v < vertices.size(); ++v) {
-				const auto& vertex = vertices[v];
-				printf("  Vertex %zu: pos=(%.3f,%.3f,%.3f,%.3f), color=(%.3f,%.3f,%.3f,%.3f)\n",
-					v, vertex.position.x, vertex.position.y, vertex.position.z, vertex.position.w,
-					vertex.color.x, vertex.color.y, vertex.color.z, vertex.color.w);
+			// DEBUG: Print the vertices we're adding (only for first entity to reduce spam)
+			if (logger && entity_handles.empty()) {
+				logger->Debug(std::format("Adding {} vertices for entity {}", vertices.size(), entity_handles.size()), "VKRender");
+				for (size_t v = 0; v < std::min(vertices.size(), size_t(3)); ++v) { // Only log first 3 vertices
+					const auto& vertex = vertices[v];
+					logger->Debug(std::format("  Vertex {}: pos=({:.3f},{:.3f},{:.3f},{:.3f}), color=({:.3f},{:.3f},{:.3f},{:.3f})",
+						v, vertex.position.x, vertex.position.y, vertex.position.z, vertex.position.w,
+						vertex.color.x, vertex.color.y, vertex.color.z, vertex.color.w), "VKRender");
+				}
 			}
 			
 			// Add indices from faces - IMPORTANT: Use absolute indices, not relative to vertex_offset
 			for (const auto& face : faces)
 			{
 				const auto& face_indices = face.GetVertexIndices();
-				printf("DEBUG: Face with %zu indices: ", face_indices.size());
+				if (logger && entity_handles.empty()) { // Only log for first entity
+					logger->Debug(std::format("Face with {} indices", face_indices.size()), "VKRender");
+				}
 				for (uint32_t index : face_indices)
 				{
 					// Index should be absolute in the global vertex buffer
 					uint32_t absolute_index = render_data.vertex_offset + index;
 					all_indices.push_back(absolute_index);
-					printf("%u->%u ", index, absolute_index);
 				}
-				printf("\n");
 			}
 			
 			render_data.index_count = static_cast<uint32_t>(all_indices.size()) - render_data.index_offset;
@@ -148,17 +168,21 @@ void Renderer::UploadSceneDataToBindlessBuffers()
 			
 			entity_handles.push_back(render_data);
 			
-			printf("DEBUG: Entity %zu - vertices: %u (offset %u), indices: %u (offset %u), transform: %u, material: %u\n",
-				entity_handles.size() - 1, render_data.vertex_count, render_data.vertex_offset, 
-				render_data.index_count, render_data.index_offset, 
-				render_data.transform_index, render_data.material_index);
+			if (logger) {
+				logger->Debug(std::format("Entity {} - vertices: {} (offset {}), indices: {} (offset {}), transform: {}, material: {}",
+					entity_handles.size() - 1, render_data.vertex_count, render_data.vertex_offset, 
+					render_data.index_count, render_data.index_offset, 
+					render_data.transform_index, render_data.material_index), "VKRender");
+			}
 		}
 		
 		// Allocate buffers ONCE
 		if (!all_vertices.empty())
 		{
-			printf("DEBUG: Allocating static buffers: %zu vertices, %zu indices, %zu transforms, %zu materials\n", 
-				all_vertices.size(), all_indices.size(), all_transforms.size(), all_materials.size());
+			if (logger) {
+				logger->Debug(std::format("Allocating static buffers: {} vertices, {} indices, {} transforms, {} materials", 
+					all_vertices.size(), all_indices.size(), all_transforms.size(), all_materials.size()), "VKRender");
+			}
 			
 			vertex_handle = global_manager->AllocateVertexData(all_vertices);
 			index_handle = global_manager->AllocateIndexData(all_indices);
@@ -167,12 +191,16 @@ void Renderer::UploadSceneDataToBindlessBuffers()
 			
 			if (vertex_handle.IsValid() && index_handle.IsValid() && transform_handle.IsValid() && material_handle.IsValid())
 			{
-				printf("DEBUG: Successfully allocated all static buffers\n");
+				if (logger) {
+					logger->Debug("Successfully allocated all static buffers", "VKRender");
+				}
 				buffers_allocated = true;
 			}
 			else
 			{
-				printf("DEBUG: ERROR - Failed to allocate static buffers!\n");
+				if (logger) {
+					logger->Error("Failed to allocate static buffers!", "VKRender");
+				}
 			}
 		}
 	}
@@ -217,8 +245,15 @@ void Renderer::UpdateCameraData(uint32_t frame_index)
 	// CRITICAL FIX: Always ensure frame index is properly bounded
 	uint32_t safe_frame_index = frame_index % vulkan::MAX_FRAMES;
 	
-	printf("DEBUG: UpdateCameraData called with frame_index=%u, using safe_frame_index=%u (MAX_FRAMES=%u)\n", 
-		frame_index, safe_frame_index, vulkan::MAX_FRAMES);
+	// Only log occasionally to reduce spam
+	static int debug_counter = 0;
+	auto* app = vulkan::VulkanHandler::GetApp();
+	auto* logger = app ? app->GetLogger() : nullptr;
+	
+	if (logger && debug_counter % 120 == 0) { // Log every 120 frames (2 seconds at 60fps)
+		logger->Debug(std::format("UpdateCameraData called with frame_index={}, using safe_frame_index={} (MAX_FRAMES={})", 
+			frame_index, safe_frame_index, vulkan::MAX_FRAMES), "VKRender");
+	}
 
 	// Create camera data with proper Vulkan conventions
 	vulkan::CameraData camera_data;
@@ -245,18 +280,14 @@ void Renderer::UpdateCameraData(uint32_t frame_index)
 	global_manager->UpdateCameraData(safe_frame_index, camera_data);
 	
 	// DEBUG: Print camera matrices occasionally
-	static int debug_counter = 0;
-	if (debug_counter % 60 == 0) {  // Print every 60 frames
-		printf("DEBUG Camera [frame %u->%u]: eye=(%.2f,%.2f,%.2f), aspect=%.2f\n", 
-			frame_index, safe_frame_index, eye.x, eye.y, eye.z, aspect);
-		printf("       View matrix: [%.2f %.2f %.2f %.2f]\n", 
-			camera_data.view[0][0], camera_data.view[0][1], camera_data.view[0][2], camera_data.view[0][3]);
-		printf("                    [%.2f %.2f %.2f %.2f]\n", 
-			camera_data.view[1][0], camera_data.view[1][1], camera_data.view[1][2], camera_data.view[1][3]);
-		printf("                    [%.2f %.2f %.2f %.2f]\n", 
-			camera_data.view[2][0], camera_data.view[2][1], camera_data.view[2][2], camera_data.view[2][3]);
-		printf("                    [%.2f %.2f %.2f %.2f]\n", 
-			camera_data.view[3][0], camera_data.view[3][1], camera_data.view[3][2], camera_data.view[3][3]);
+	if (logger && debug_counter % 120 == 0) {  // Print every 120 frames
+		logger->Debug(std::format("Camera [frame {}->{}]: eye=({:.2f},{:.2f},{:.2f}), aspect={:.2f}", 
+			frame_index, safe_frame_index, eye.x, eye.y, eye.z, aspect), "VKRender");
+		logger->Debug(std::format("View matrix: [{:.2f} {:.2f} {:.2f} {:.2f}] [{:.2f} {:.2f} {:.2f} {:.2f}] [{:.2f} {:.2f} {:.2f} {:.2f}] [{:.2f} {:.2f} {:.2f} {:.2f}]", 
+			camera_data.view[0][0], camera_data.view[0][1], camera_data.view[0][2], camera_data.view[0][3],
+			camera_data.view[1][0], camera_data.view[1][1], camera_data.view[1][2], camera_data.view[1][3],
+			camera_data.view[2][0], camera_data.view[2][1], camera_data.view[2][2], camera_data.view[2][3],
+			camera_data.view[3][0], camera_data.view[3][1], camera_data.view[3][2], camera_data.view[3][3]), "VKRender");
 	}
 	debug_counter++;
 }

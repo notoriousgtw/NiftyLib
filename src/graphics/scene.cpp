@@ -1,5 +1,6 @@
 #include "graphics/scene.h"
 #include "core/error.h"
+#include "vk/handler.h"
 
 namespace nft::graphics
 {
@@ -63,7 +64,12 @@ ecs::EntityId Scene::LoadObjScene(const std::string& file_dir, const std::string
 
 ecs::EntityId Scene::CreateTriangleEntity(const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation)
 {
-	printf("DEBUG: Creating triangle entity at position (%f, %f, %f)\n", position.x, position.y, position.z);
+	auto* app = vulkan::VulkanHandler::GetApp();
+	auto* logger = app ? app->GetLogger() : nullptr;
+	
+	if (logger) {
+		logger->Debug(std::format("Creating triangle entity at position ({:.6f}, {:.6f}, {:.6f})", position.x, position.y, position.z), "Scene");
+	}
 	
 	// Create entity
 	ecs::EntityId entity = world->CreateEntity();
@@ -78,7 +84,9 @@ ecs::EntityId Scene::CreateTriangleEntity(const glm::vec3& position, const glm::
 	// Register entity for rendering
 	RegisterEntity(entity);
 	
-	printf("DEBUG: Created triangle entity with ID %u, registered %zu total entities\n", entity, renderable_entities.size());
+	if (logger) {
+		logger->Debug(std::format("Created triangle entity with ID {}, registered {} total entities", entity, renderable_entities.size()), "Scene");
+	}
 	
 	return entity;
 }
@@ -110,10 +118,15 @@ std::shared_ptr<TriMesh> Scene::CreateTriangleMesh()
 	Vertex v1 = {{ 0.8f, -0.6f, 0.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}};  // Bottom right - green
 	Vertex v2 = {{ 0.0f,  0.6f, 0.0f, 1.0f}, {0.5f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f, 1.0f}};  // Top center - blue
 	
-	printf("DEBUG: Triangle mesh vertices: v0=(%f,%f,%f), v1=(%f,%f,%f), v2=(%f,%f,%f)\n",
-		v0.position.x, v0.position.y, v0.position.z,
-		v1.position.x, v1.position.y, v1.position.z,
-		v2.position.x, v2.position.y, v2.position.z);
+	auto* app = vulkan::VulkanHandler::GetApp();
+	auto* logger = app ? app->GetLogger() : nullptr;
+	
+	if (logger) {
+		logger->Debug(std::format("Triangle mesh vertices: v0=({:.6f},{:.6f},{:.6f}), v1=({:.6f},{:.6f},{:.6f}), v2=({:.6f},{:.6f},{:.6f})",
+			v0.position.x, v0.position.y, v0.position.z,
+			v1.position.x, v1.position.y, v1.position.z,
+			v2.position.x, v2.position.y, v2.position.z), "Scene");
+	}
 	
 	// Add vertices to mesh
 	mesh->AddVertex(v0);

@@ -38,10 +38,16 @@ struct TransformComponent
 		model			= glm::scale(model, scale);
 		
 		// Debug output for transform matrix (only print once to reduce spam)
+		// Note: Using proper logging would require including header for VulkanHandler, which could create circular dependency
+		// This debug info is only needed for initial development, so it's commented out for production
 		static bool printed = false;
 		if (!printed) {
-			printf("DEBUG: Transform - pos: (%f, %f, %f), scale: (%f, %f, %f), rot: (%f, %f, %f)\n",
-				position.x, position.y, position.z, scale.x, scale.y, scale.z, rotation.x, rotation.y, rotation.z);
+			// Convert to proper logging when needed:
+			// auto* app = vulkan::VulkanHandler::GetApp();
+			// if (app && app->GetLogger()) {
+			//     app->GetLogger()->Debug(std::format("Transform - pos: ({:.6f}, {:.6f}, {:.6f}), scale: ({:.6f}, {:.6f}, {:.6f}), rot: ({:.6f}, {:.6f}, {:.6f})",
+			//         position.x, position.y, position.z, scale.x, scale.y, scale.z, rotation.x, rotation.y, rotation.z), "Transform");
+			// }
 			printed = true;
 		}
 		
