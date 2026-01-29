@@ -16,24 +16,26 @@ endif()
 # Specify the project name
 project(NiftyLib)
 
-include(FetchContent)
-FetchContent_Declare(
-    lunasvg
-    GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
-    GIT_TAG master  # Specify the desired branch or tag
-)
-FetchContent_MakeAvailable(lunasvg)
+# include(FetchContent)
+# FetchContent_Declare(
+#     lunasvg
+#     GIT_REPOSITORY https://github.com/sammycage/lunasvg.git
+#     GIT_TAG master  # Specify the desired branch or tag
+# )
+# FetchContent_MakeAvailable(lunasvg)
 
-FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG latest
-)
-FetchContent_MakeAvailable(glfw)
+# FetchContent_Declare(
+#     glfw
+#     GIT_REPOSITORY https://github.com/glfw/glfw.git
+#     GIT_TAG latest
+# )
+# FetchContent_MakeAvailable(glfw)
 
 find_package(imgui CONFIG REQUIRED)
 find_package(glad CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(lunasvg CONFIG REQUIRED)
 
 file(GLOB SOURCES "src/*.cpp")
 

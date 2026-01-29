@@ -34,7 +34,7 @@ class Image
 	void PushClipPath(ClipPath clip_path);
 	void PopClipPath(ClipPath clip_path);
 
-	Path& Path();
+	// Path& Path();
 
   private:
 	bool			   should_update = true;

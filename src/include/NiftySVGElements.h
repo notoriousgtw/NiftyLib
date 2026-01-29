@@ -6,6 +6,7 @@
 
 namespace Nifty::SVG
 {
+class Image;
 
 class Element
 {
@@ -36,7 +37,7 @@ class ClipPath
 
   private:
 	std::string	 id;
-	virtual void GenId() = 0;
+	void GenId() {id = "0";};
 };
 
 }	 // namespace Nifty::SVG

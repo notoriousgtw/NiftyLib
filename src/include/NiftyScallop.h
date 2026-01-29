@@ -12,68 +12,6 @@ using namespace Nifty::Stik;
 
 namespace Nifty
 {
-namespace SVG
-{
-
-class Fretboard
-{
-  public:
-	class ClipPath
-	{
-	  public:
-		enum class Type
-		{
-			Scallop,
-			Route
-		};
-
-		ClipPath() = delete;
-		ClipPath(Scallop::FretboardData* fretboard_data);
-		ClipPath(Scallop::FretboardData* fretboard_data,
-				 Route::RouterBit		 router_bit,
-				 Scallop::RouteOffset	 route_offset);
-		bool		operator<(const ClipPath& other) const { return id < other.id; };
-		std::string Calc();
-
-	  private:
-		size_t					id;
-		Type					type;
-		Route::RouterBit*		router_bit	   = nullptr;
-		Scallop::RouteOffset*	route_offset   = nullptr;
-		Scallop::FretboardData* fretboard_data = nullptr;
-		void					GenId();
-	};
-
-	Fretboard();
-	void Update();
-	int	 GetTextureID() { return svg_handler.texture_id; };
-	int	 GetWidth() { return svg_handler.width; };
-	int	 GetHeight() { return svg_handler.height; };
-	void SetScaleLength(double scale_length);
-	void SetFretCount(size_t fret_count);
-	void SetFretWidth(double fret_width);
-	void SetFretHeight(double fret_height);
-	void SetScallopDepth(double scallop_depth);
-	void PushClipPath(ClipPath clip_path);
-	void PopClipPath(ClipPath clip_path);
-
-  private:
-	bool					should_update = true;
-	Scallop::FretboardData* fretboard_data;
-	std::set<ClipPath>		clip_paths;
-	std::string				svg_data;
-	BMPHandler					svg_handler;
-
-	std::string CalcFretData();
-	std::string CalcClipData();
-	std::string CalcScallopClipPath();
-	std::string CalcScallopClipHead();
-	std::string CalcScallopClipBody();
-	std::string CalcRouteClipPaths();
-	std::string CalcRouteClipHead();
-	std::string CalcRouteClipBody();
-};
-}	 // namespace SVG
 
 namespace Route
 {
@@ -92,6 +30,10 @@ const std::map<RouterBit, double> router_bits = { { RouterBit::ThreeEighth, 0.37
 												  { RouterBit::Eighth, 0.125 } };
 
 }	 // namespace Route
+
+namespace SVG {
+	class Fretboard;
+}
 
 namespace Scallop
 {
@@ -181,6 +123,74 @@ class FretboardData
 	double		   router_base_width;
 	FretDataVector fret_data_vec;
 	size_t		   fret_index = 1;
+
+	friend class SVG::Fretboard;
 };
 }	 // namespace Scallop
+
+namespace SVG
+{
+
+using namespace Nifty::Scallop;
+
+class Fretboard
+{
+  public:
+	class ClipPath
+	{
+	  public:
+		enum class Type
+		{
+			Scallop,
+			Route
+		};
+
+		ClipPath() = delete;
+		ClipPath(Scallop::FretboardData* fretboard_data);
+		ClipPath(Scallop::FretboardData* fretboard_data,
+				 Route::RouterBit		 router_bit,
+				 Scallop::RouteOffset	 route_offset);
+		bool		operator<(const ClipPath& other) const { return id < other.id; };
+		std::string Calc();
+
+	  private:
+		size_t					id;
+		Type					type;
+		Route::RouterBit*		router_bit	   = nullptr;
+		Scallop::RouteOffset*	route_offset   = nullptr;
+		Scallop::FretboardData* fretboard_data = nullptr;
+		void					GenId();
+	};
+
+	Fretboard();
+	void Update();
+	int	 GetTextureID() { return svg_handler.texture_id; };
+	int	 GetWidth() { return svg_handler.width; };
+	int	 GetHeight() { return svg_handler.height; };
+	void SetScaleLength(double scale_length);
+	void SetFretCount(size_t fret_count);
+	void SetFretWidth(double fret_width);
+	void SetFretHeight(double fret_height);
+	void SetScallopDepth(double scallop_depth);
+	void PushClipPath(ClipPath clip_path);
+	void PopClipPath(ClipPath clip_path);
+
+  private:
+	bool					should_update = true;
+	Scallop::FretboardData* fretboard_data;
+	std::set<ClipPath>		clip_paths;
+	std::string				svg_data;
+	BMPHandler					svg_handler;
+
+	std::string CalcFretData();
+	std::string CalcClipData();
+	std::string CalcScallopClipPath();
+	std::string CalcScallopClipHead();
+	std::string CalcScallopClipBody();
+	std::string CalcRouteClipPaths();
+	std::string CalcRouteClipHead();
+	std::string CalcRouteClipBody();
+};
+}	 // namespace SVG
+
 }	 // namespace Nifty

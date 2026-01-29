@@ -6,7 +6,9 @@
     },
     "glm",
     "glad",
-    "libxlsxwriter"
+    "glfw3",
+    "libxlsxwriter",
+    "lunasvg"
   ],
   "name": "nifty-scallop",
   "description": "Calculates router offsets to be used when scalloping a guitar neck.",

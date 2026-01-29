@@ -28,7 +28,7 @@ Fretboard::ClipPath::ClipPath(Scallop::FretboardData* fretboard_data,
 	GenId();
 }
 
-std::string Fretboard::ClipPath::Calc() {}
+std::string Fretboard::ClipPath::Calc() {return "";}
 
 void Fretboard::ClipPath::GenId()
 {
@@ -126,18 +126,18 @@ std::string Fretboard::CalcFretData()
 {
 	std::string fret_data;
 
-	for (int i = 1; i <= fret_count + 1; i++)
+	for (int i = 1; i <= fretboard_data->fret_count + 1; i++)
 	{
-		double fret_length = FretCalculator(scale_length, i);
+		double fret_length = FretCalculator(fretboard_data->scale_length, i);
 		if (i == 1)
-			fret_length -= fret_width / 2;
+			fret_length -= fretboard_data->fret_width / 2;
 		else
-			fret_length -= FretCalculator(scale_length, i - 1) - fret_width;
+			fret_length -= FretCalculator(fretboard_data->scale_length, i - 1) - fretboard_data->fret_width;
 
 		std::ostringstream edit_stream;
 		std::string		   new_fret_data;
 
-		if (i != fret_count + 1)
+		if (i != fretboard_data->fret_count + 1)
 			new_fret_data = fret_body_template;
 		else
 			new_fret_data = fret_body_final_template;
@@ -149,19 +149,19 @@ std::string Fretboard::CalcFretData()
 			new_fret_data.replace(pos, std::string("FRET_LENGTH").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << (fret_width / 2) * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << (fretboard_data->fret_width / 2) * 1000;
 		pos = new_fret_data.find("FRET_WIDTH_HALF");
 		if (pos != std::string::npos)
 			new_fret_data.replace(pos, std::string("FRET_WIDTH_HALF").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << fret_height * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << fretboard_data->fret_height * 1000;
 		pos = new_fret_data.find("FRET_HEIGHT");
 		if (pos != std::string::npos)
 			new_fret_data.replace(pos, std::string("FRET_HEIGHT").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << fret_width * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << fretboard_data->fret_width * 1000;
 		pos = new_fret_data.find("FRET_WIDTH");
 		if (pos != std::string::npos) new_fret_data.replace(pos, std::string("FRET_WIDTH").length(), edit_stream.str());
 		edit_stream.str("");
@@ -223,18 +223,18 @@ std::string Fretboard::CalcScallopClipBody()
 {
 	std::string scallop_clip_body;
 
-	for (int i = 1; i <= fret_count; i++)
+	for (int i = 1; i <= fretboard_data->fret_count; i++)
 	{
-		double fret_length = FretCalculator(scale_length, i);
+		double fret_length = FretCalculator(fretboard_data->scale_length, i);
 		if (i == 1)
-			fret_length -= fret_width / 2;
+			fret_length -= fretboard_data->fret_width / 2;
 		else
-			fret_length -= FretCalculator(scale_length, i - 1) - fret_width;
+			fret_length -= FretCalculator(fretboard_data->scale_length, i - 1) - fretboard_data->fret_width;
 
 		std::ostringstream edit_stream;
 		std::string		   new_scallop_data;
 
-		if (i < fret_count)
+		if (i < fretboard_data->fret_count)
 			new_scallop_data = scallop_clip_body_template;
 		else
 			new_scallop_data = scallop_clip_body_final_template;
@@ -246,7 +246,7 @@ std::string Fretboard::CalcScallopClipBody()
 			new_scallop_data.replace(pos, std::string("FRET_LENGTH_HALF").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << scallop_depth * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << fretboard_data->scallop_depth * 1000;
 		pos = new_scallop_data.find("SCALLOP_DEPTH");
 		if (pos != std::string::npos)
 			new_scallop_data.replace(pos, std::string("SCALLOP_DEPTH").length(), edit_stream.str());
@@ -258,7 +258,7 @@ std::string Fretboard::CalcScallopClipBody()
 			new_scallop_data.replace(pos, std::string("FRET_LENGTH").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << fret_width * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << fretboard_data->fret_width * 1000;
 		pos = new_scallop_data.find("FRET_WIDTH");
 		if (pos != std::string::npos)
 			new_scallop_data.replace(pos, std::string("FRET_WIDTH").length(), edit_stream.str());
@@ -308,18 +308,18 @@ std::string Fretboard::CalcRouteClipBody()
 {
 	std::string scallop_clip_body;
 
-	for (int i = 1; i <= fret_count; i++)
+	for (int i = 1; i <= fretboard_data->fret_count; i++)
 	{
-		double fret_length = FretCalculator(scale_length, i);
+		double fret_length = FretCalculator(fretboard_data->scale_length, i);
 		if (i == 1)
-			fret_length -= fret_width / 2;
+			fret_length -= fretboard_data->fret_width / 2;
 		else
-			fret_length -= FretCalculator(scale_length, i - 1) - fret_width;
+			fret_length -= FretCalculator(fretboard_data->scale_length, i - 1) - fretboard_data->fret_width;
 
 		std::ostringstream edit_stream;
 		std::string		   new_scallop_data;
 
-		if (i < fret_count)
+		if (i < fretboard_data->fret_count)
 			new_scallop_data = scallop_clip_body_template;
 		else
 			new_scallop_data = scallop_clip_body_final_template;
@@ -331,7 +331,7 @@ std::string Fretboard::CalcRouteClipBody()
 			new_scallop_data.replace(pos, std::string("FRET_LENGTH_HALF").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << scallop_depth * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << fretboard_data->scallop_depth * 1000;
 		pos = new_scallop_data.find("SCALLOP_DEPTH");
 		if (pos != std::string::npos)
 			new_scallop_data.replace(pos, std::string("SCALLOP_DEPTH").length(), edit_stream.str());
@@ -343,7 +343,7 @@ std::string Fretboard::CalcRouteClipBody()
 			new_scallop_data.replace(pos, std::string("FRET_LENGTH").length(), edit_stream.str());
 		edit_stream.str("");
 
-		edit_stream << std::fixed << std::setprecision(1) << fret_width * 1000;
+		edit_stream << std::fixed << std::setprecision(1) << fretboard_data->fret_width * 1000;
 		pos = new_scallop_data.find("FRET_WIDTH");
 		if (pos != std::string::npos)
 			new_scallop_data.replace(pos, std::string("FRET_WIDTH").length(), edit_stream.str());
