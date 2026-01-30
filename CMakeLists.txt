@@ -1,17 +1,5 @@
-cmake_minimum_required(VERSION 3.24)
-
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /ZI")
-
- 
-# Static runtime for MSVC
-if(MSVC)
-    foreach(flag_var
-        CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_DEBUG
-        CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_DEBUG)
-        string(REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-    endforeach()
-endif()
+# Prefer static libraries and static runtime by default
+set(BUILD_SHARED_LIBS OFF)
 
 # Specify the project name
 project(NiftyLib)
@@ -62,6 +50,10 @@ install(EXPORT NiftyLibTargets
 
 if (WIN32)
     target_link_libraries(NiftyLib PRIVATE opengl32 gdi32 user32 shell32)
+endif()
+
+if(UNIX AND NOT APPLE)
+    target_link_options(NiftyLib PRIVATE -static -static-libgcc -static-libstdc++)
 endif()
 
 target_link_libraries(NiftyLib PRIVATE lunasvg::lunasvg imgui::imgui glm::glm glfw glad::glad)
